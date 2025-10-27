@@ -77,8 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("token", data.token);
     
     // Clear all cached data to ensure fresh fetch for this user
-    const { queryClient } = await import("@/lib/queryClient");
-    queryClient.clear();
+    const module = await import("@/lib/queryClient");
+    module.queryClient.clear();
 
     toast({
       title: "Welcome back!",
@@ -109,8 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("token", data.token);
     
     // Clear all cached data for fresh start
-    const { queryClient } = await import("@/lib/queryClient");
-    queryClient.clear();
+    const module = await import("@/lib/queryClient");
+    module.queryClient.clear();
 
     toast({
       title: "Account created!",
@@ -124,8 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("token");
     
     // Clear all React Query cache to ensure no data persists
-    const { queryClient } = await import("@/lib/queryClient");
-    queryClient.clear();
+    import("@/lib/queryClient").then(({ queryClient }) => {
+      queryClient.clear();
+    });
     
     toast({
       title: "Logged out",

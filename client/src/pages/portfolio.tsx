@@ -114,48 +114,11 @@ export default function Portfolio() {
       });
   };
 
-  if (isLoading) {
-    return (
-      <div className="pb-20 px-4 pt-6 max-w-lg mx-auto space-y-6">
-        <div className="h-12 bg-card rounded-lg animate-pulse" />
-        <div className="h-32 bg-card rounded-lg animate-pulse" />
-        <div className="h-12 bg-card rounded-lg animate-pulse" />
-        <div className="h-64 bg-card rounded-lg animate-pulse" />
-      </div>
-    );
-  }
-
-  const updateSavingsMutation = useMutation({
-    mutationFn: (data: { savings: string }) =>
-      apiRequest("PUT", `/api/monthly-data/${selectedMonth}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${selectedMonth}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
-      toast({ title: "Savings updated successfully" });
-    },
-    onError: (error) => {
-      toast({ title: "Error updating savings", description: error.message, variant: "destructive" });
-    }
-  });
-
-  const updateInvestmentsMutation = useMutation({
-    mutationFn: (data: { investments: string }) =>
-      apiRequest("PUT", `/api/monthly-data/${selectedMonth}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${selectedMonth}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
-      toast({ title: "Investments updated successfully" });
-    },
-    onError: (error) => {
-      toast({ title: "Error updating investments", description: error.message, variant: "destructive" });
-    }
-  });
-
   const handleSavingsUpdate = () => {
     const value = parseFloat(editValue);
     if (isNaN(value) && editValue !== "0") return;
 
-    updateSavingsMutation.mutate({
+    updateMonthlyDataMutation.mutate({
       savings: value.toString(),
     });
     setSavingsDialogOpen(false);
@@ -166,12 +129,23 @@ export default function Portfolio() {
     const value = parseFloat(editValue);
     if (isNaN(value) && editValue !== "0") return;
 
-    updateInvestmentsMutation.mutate({
+    updateMonthlyDataMutation.mutate({
       investments: value.toString(),
     });
     setInvestmentsDialogOpen(false);
     setEditValue("");
   };
+
+  if (isLoading) {
+    return (
+      <div className="pb-20 px-4 pt-6 max-w-lg mx-auto space-y-6">
+        <div className="h-12 bg-card rounded-lg animate-pulse" />
+        <div className="h-32 bg-card rounded-lg animate-pulse" />
+        <div className="h-12 bg-card rounded-lg animate-pulse" />
+        <div className="h-64 bg-card rounded-lg animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="pb-20 px-4 pt-6 max-w-lg mx-auto space-y-6">
@@ -392,14 +366,14 @@ export default function Portfolio() {
                 setEditValue("0");
                 handleSavingsUpdate();
               }}
-              disabled={updateSavingsMutation.isPending}
+              disabled={updateMonthlyDataMutation.isPending}
               data-testid="button-clear-savings"
             >
               Clear
             </Button>
             <Button
               onClick={handleSavingsUpdate}
-              disabled={updateSavingsMutation.isPending}
+              disabled={updateMonthlyDataMutation.isPending}
               className="flex-1"
               data-testid="button-update-savings"
             >
@@ -447,14 +421,14 @@ export default function Portfolio() {
                 setEditValue("0");
                 handleInvestmentsUpdate();
               }}
-              disabled={updateInvestmentsMutation.isPending}
+              disabled={updateMonthlyDataMutation.isPending}
               data-testid="button-clear-investments"
             >
               Clear
             </Button>
             <Button
               onClick={handleInvestmentsUpdate}
-              disabled={updateInvestmentsMutation.isPending}
+              disabled={updateMonthlyDataMutation.isPending}
               className="flex-1"
               data-testid="button-update-investments"
             >

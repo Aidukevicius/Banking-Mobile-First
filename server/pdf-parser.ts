@@ -1,4 +1,4 @@
-import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+import * as pdfParse from 'pdf-parse';
 
 export interface ParsedTransaction {
   date: string;

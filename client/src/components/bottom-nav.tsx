@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { Home, FileText, DollarSign, TrendingUp, Settings } from "lucide-react";
+import { Home, FileText, DollarSign, TrendingUp, Settings, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: Home },
   { path: "/transactions", label: "Expenses", icon: FileText },
   { path: "/income", label: "Income", icon: DollarSign },
+  { path: "/categories", label: "Categories", icon: Tag },
   { path: "/portfolio", label: "Portfolio", icon: TrendingUp },
   { path: "/settings", label: "Settings", icon: Settings },
 ];

@@ -15,10 +15,13 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
     // Try different import patterns
     let pdfParse;
     if ((pdfParseModule as any).PDFParse) {
-      // If it's a class, instantiate it
+      // If it's a class, instantiate it with required options
       const PDFParseClass = (pdfParseModule as any).PDFParse;
       pdfParse = async (buffer: Buffer) => {
-        const parser = new PDFParseClass();
+        const parser = new PDFParseClass({
+          verbosity: 0, // Suppress logging
+          options: {}
+        });
         return await parser.parse(buffer);
       };
     } else if (typeof pdfParseModule.default === 'function') {

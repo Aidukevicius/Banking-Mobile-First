@@ -108,7 +108,7 @@ export default function Portfolio() {
 
   const updateMonthlyDataMutation = useMutation({
     mutationFn: ({ monthYear, data }: { monthYear: string; data: any }) =>
-      apiRequest("POST", `/api/monthly-data`, { monthYear, ...data }),
+      apiRequest("PUT", `/api/monthly-data/${monthYear}`, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${variables.monthYear}`] });
     },
@@ -134,6 +134,62 @@ export default function Portfolio() {
     if (isNaN(amount) || amount <= 0) {
       toast({ title: "Please enter a valid amount", variant: "destructive" });
       return;
+    }
+
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    
+    try {
+      if (selectedPotId) {
+        // Update existing pot
+        const pot = (currentType === "savings" ? savingsPots : investmentPots).find(
+          (p: any) => p.id === selectedPotId
+        );
+        if (pot) {
+          const newAmount = (parseFloat(pot.amount) + amount).toString();
+          await updatePotMutation.mutateAsync({
+            id: selectedPotId,
+            data: { amount: newAmount },
+          });
+        }
+      } else if (newPotName.trim()) {
+        // Create new pot
+        await createPotMutation.mutateAsync({
+          name: newPotName,
+          amount: amount.toString(),
+          type: currentType,
+        });
+      }
+
+      // Calculate new totals after mutation completes
+      await queryClient.invalidateQueries({ queryKey: ["/api/savings-pots"] });
+      
+      // Wait a bit for queries to refetch
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const updatedSavingsPots = queryClient.getQueryData(["/api/savings-pots", { type: "savings" }]) as any[] || [];
+      const updatedInvestmentPots = queryClient.getQueryData(["/api/savings-pots", { type: "investments" }]) as any[] || [];
+      
+      const newTotalSavings = updatedSavingsPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
+      const newTotalInvestments = updatedInvestmentPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
+
+      // Update monthly data with new totals
+      await updateMonthlyDataMutation.mutateAsync({
+        monthYear: currentMonth,
+        data: {
+          savings: newTotalSavings.toString(),
+          investments: newTotalInvestments.toString(),
+        },
+      });
+
+      toast({ title: `${currentType === "savings" ? "Savings" : "Investment"} updated successfully` });
+      setAddSavingsDialogOpen(false);
+      setAddInvestmentsDialogOpen(false);
+      setSelectedPotId("");
+      setNewPotName("");
+      setAdjustAmount("");
+    } catch (error: any) {
+      toast({ title: "Error updating pot", description: error.message, variant: "destructive" });
+    }
     }
 
     if (selectedPotId === "new") {

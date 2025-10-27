@@ -9,12 +9,12 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
   try {
     console.log('Starting PDF parse, buffer size:', pdfBuffer.length);
     
-    // Dynamic import pdf-parse
+    // Dynamic import pdf-parse - handle both ESM and CommonJS
     const pdfParseModule = await import('pdf-parse');
-    const pdfParseFunc = pdfParseModule.default;
+    const pdfParse = pdfParseModule.default || pdfParseModule;
     
-    console.log('PDF parse function loaded, type:', typeof pdfParseFunc);
-    const data = await pdfParseFunc(pdfBuffer);
+    console.log('PDF parse function loaded, type:', typeof pdfParse);
+    const data = await pdfParse(pdfBuffer);
     const text = data.text;
     console.log('PDF text extracted, length:', text.length);
 

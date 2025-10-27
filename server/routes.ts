@@ -145,7 +145,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/transactions", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const data = insertTransactionSchema.parse(req.body);
-      const transaction = await storage.createTransaction({ ...data, userId: req.userId! });
+      const transaction = await storage.createTransaction({ 
+        ...data, 
+        userId: req.userId!,
+        date: typeof data.date === 'string' ? new Date(data.date) : data.date,
+      });
       res.json(transaction);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -156,7 +160,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const data = insertTransactionSchema.partial().parse(req.body);
-      const transaction = await storage.updateTransaction(id, req.userId!, data);
+      const updateData = {
+        ...data,
+        date: data.date && typeof data.date === 'string' ? new Date(data.date) : data.date,
+      };
+      const transaction = await storage.updateTransaction(id, req.userId!, updateData);
       if (!transaction) {
         return res.status(404).json({ error: "Transaction not found" });
       }

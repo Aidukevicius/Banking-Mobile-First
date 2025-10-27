@@ -1,4 +1,6 @@
-import * as pdfParse from 'pdf-parse';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 export interface ParsedTransaction {
   date: string;

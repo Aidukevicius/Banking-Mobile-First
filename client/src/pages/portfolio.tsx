@@ -39,6 +39,24 @@ export default function Portfolio() {
     queryKey: ["/api/monthly-data"],
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
+  });
+
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: Record<string, string> = {
+      USD: "$",
+      EUR: "€",
+      GBP: "£",
+      JPY: "¥",
+      CAD: "C$",
+      AUD: "A$",
+    };
+    return symbols[currency] || "$";
+  };
+
+  const currencySymbol = getCurrencySymbol(settings?.currency || "USD");
+
   const updateMonthlyDataMutation = useMutation({
     mutationFn: (data: any) =>
       apiRequest("PUT", `/api/monthly-data/${selectedMonth}`, data),
@@ -46,18 +64,21 @@ export default function Portfolio() {
       queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
       toast({ title: "Portfolio updated successfully" });
     },
+    onError: (error) => {
+      toast({ title: "Error updating portfolio", description: error.message, variant: "destructive" });
+    }
   });
 
   const quickAdjustments = [100, 500, 1000];
 
-  const currentSavings = monthlyData?.savings ? parseFloat(monthlyData.savings) : 0;
-  const currentInvestments = monthlyData?.investments ? parseFloat(monthlyData.investments) : 0;
+  const currentSavings = parseFloat(monthlyData?.savings || "0");
+  const currentInvestments = parseFloat(monthlyData?.investments || "0");
 
   const handleQuickAdjust = (amount: number, type: "add" | "subtract", field: "savings" | "investments") => {
     const currentValue = field === "savings" ? currentSavings : currentInvestments;
     const adjustment = type === "add" ? amount : -amount;
     const newValue = Math.max(0, currentValue + adjustment);
-    
+
     updateMonthlyDataMutation.mutate({
       monthYear: selectedMonth,
       [field]: newValue.toString(),
@@ -104,6 +125,54 @@ export default function Portfolio() {
     );
   }
 
+  const updateSavingsMutation = useMutation({
+    mutationFn: (data: { monthYear: string; savings: string }) =>
+      apiRequest("PUT", `/api/monthly-data/${data.monthYear}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
+      toast({ title: "Savings updated successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error updating savings", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const updateInvestmentsMutation = useMutation({
+    mutationFn: (data: { monthYear: string; investments: string }) =>
+      apiRequest("PUT", `/api/monthly-data/${data.monthYear}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
+      toast({ title: "Investments updated successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error updating investments", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const handleSavingsUpdate = () => {
+    const value = parseFloat(editValue);
+    if (isNaN(value) && editValue !== "0") return;
+
+    updateSavingsMutation.mutate({
+      monthYear: selectedMonth,
+      savings: value.toString(),
+    });
+    setSavingsDialogOpen(false);
+    setEditValue("");
+  };
+
+  const handleInvestmentsUpdate = () => {
+    const value = parseFloat(editValue);
+    if (isNaN(value) && editValue !== "0") return;
+
+    updateInvestmentsMutation.mutate({
+      monthYear: selectedMonth,
+      investments: value.toString(),
+    });
+    setInvestmentsDialogOpen(false);
+    setEditValue("");
+  };
+
   return (
     <div className="pb-20 px-4 pt-6 max-w-lg mx-auto space-y-6">
       {/* Header */}
@@ -116,7 +185,8 @@ export default function Portfolio() {
       <Card className="p-6">
         <p className="text-sm text-muted-foreground mb-2">Total Portfolio Value</p>
         <p className="text-4xl font-bold tabular-nums" data-testid="text-total-portfolio">
-          ${(currentSavings + currentInvestments).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {currencySymbol}{" "}
+          {(currentSavings + currentInvestments).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
       </Card>
 
@@ -139,7 +209,8 @@ export default function Portfolio() {
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Current Savings</p>
                 <p className="text-3xl font-bold tabular-nums" data-testid="text-savings-value">
-                  ${currentSavings.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {currencySymbol}{" "}
+                  {currentSavings.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
               <Button
@@ -169,7 +240,7 @@ export default function Portfolio() {
                       disabled={updateMonthlyDataMutation.isPending}
                     >
                       <Plus className="w-3 h-3 mr-1" />
-                      ${amount}
+                      {currencySymbol}{amount}
                     </Button>
                     <Button
                       variant="outline"
@@ -180,7 +251,7 @@ export default function Portfolio() {
                       disabled={updateMonthlyDataMutation.isPending}
                     >
                       <Minus className="w-3 h-3 mr-1" />
-                      ${amount}
+                      {currencySymbol}{amount}
                     </Button>
                   </div>
                 ))}
@@ -196,7 +267,8 @@ export default function Portfolio() {
                   <div key={index} className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">{entry.month}</span>
                     <p className="text-sm font-semibold tabular-nums">
-                      ${entry.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {currencySymbol}{" "}
+                      {entry.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 ))}
@@ -213,7 +285,8 @@ export default function Portfolio() {
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Current Investments</p>
                 <p className="text-3xl font-bold tabular-nums" data-testid="text-investments-value">
-                  ${currentInvestments.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {currencySymbol}{" "}
+                  {currentInvestments.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
               <Button
@@ -242,7 +315,7 @@ export default function Portfolio() {
                       disabled={updateMonthlyDataMutation.isPending}
                     >
                       <Plus className="w-3 h-3 mr-1" />
-                      ${amount}
+                      {currencySymbol}{amount}
                     </Button>
                     <Button
                       variant="outline"
@@ -252,7 +325,7 @@ export default function Portfolio() {
                       disabled={updateMonthlyDataMutation.isPending}
                     >
                       <Minus className="w-3 h-3 mr-1" />
-                      ${amount}
+                      {currencySymbol}{amount}
                     </Button>
                   </div>
                 ))}
@@ -268,7 +341,8 @@ export default function Portfolio() {
                   <div key={index} className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">{entry.month}</span>
                     <p className="text-sm font-semibold tabular-nums">
-                      ${entry.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {currencySymbol}{" "}
+                      {entry.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 ))}
@@ -308,14 +382,26 @@ export default function Portfolio() {
               variant="outline"
               onClick={() => setSavingsDialogOpen(false)}
               className="flex-1"
+              data-testid="button-cancel-savings"
             >
               Cancel
             </Button>
             <Button
-              onClick={() => handleSaveEdit(false)}
-              disabled={!editValue || updateMonthlyDataMutation.isPending}
+              variant="destructive"
+              onClick={() => {
+                setEditValue("0");
+                handleSavingsUpdate();
+              }}
+              disabled={updateSavingsMutation.isPending}
+              data-testid="button-clear-savings"
+            >
+              Clear
+            </Button>
+            <Button
+              onClick={handleSavingsUpdate}
+              disabled={updateSavingsMutation.isPending}
               className="flex-1"
-              data-testid="button-save-savings"
+              data-testid="button-update-savings"
             >
               Save
             </Button>
@@ -351,14 +437,26 @@ export default function Portfolio() {
               variant="outline"
               onClick={() => setInvestmentsDialogOpen(false)}
               className="flex-1"
+              data-testid="button-cancel-investments"
             >
               Cancel
             </Button>
             <Button
-              onClick={() => handleSaveEdit(true)}
-              disabled={!editValue || updateMonthlyDataMutation.isPending}
+              variant="destructive"
+              onClick={() => {
+                setEditValue("0");
+                handleInvestmentsUpdate();
+              }}
+              disabled={updateInvestmentsMutation.isPending}
+              data-testid="button-clear-investments"
+            >
+              Clear
+            </Button>
+            <Button
+              onClick={handleInvestmentsUpdate}
+              disabled={updateInvestmentsMutation.isPending}
               className="flex-1"
-              data-testid="button-save-investments"
+              data-testid="button-update-investments"
             >
               Save
             </Button>

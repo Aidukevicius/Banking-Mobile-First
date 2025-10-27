@@ -55,67 +55,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (username: string, password: string) => {
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Login failed");
-      }
-
-      const data = await response.json();
-      setUser(data.user);
-      setToken(data.token);
-      localStorage.setItem("token", data.token); // Changed from "auth_token" to "token"
-
-      toast({
-        title: "Welcome back!",
-        description: `Logged in as ${data.user.username}`,
-      });
-    } catch (error: any) {
+    if (!response.ok) {
+      const error = await response.json();
       toast({
         title: "Login failed",
-        description: error.message,
+        description: error.error || "Invalid credentials",
         variant: "destructive",
       });
-      throw error;
+      return;
     }
+
+    const data = await response.json();
+    setUser(data.user);
+    setToken(data.token);
+    localStorage.setItem("token", data.token);
+
+    toast({
+      title: "Welcome back!",
+      description: `Logged in as ${data.user.username}`,
+    });
   };
 
   const register = async (username: string, password: string) => {
-    try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+    const response = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Registration failed");
-      }
-
-      const data = await response.json();
-      setUser(data.user);
-      setToken(data.token);
-      localStorage.setItem("token", data.token); // Changed from "auth_token" to "token"
-
-      toast({
-        title: "Account created!",
-        description: `Welcome, ${data.user.username}`,
-      });
-    } catch (error: any) {
+    if (!response.ok) {
+      const error = await response.json();
       toast({
         title: "Registration failed",
-        description: error.message,
+        description: error.error || "Could not create account",
         variant: "destructive",
       });
-      throw error;
+      return;
     }
+
+    const data = await response.json();
+    setUser(data.user);
+    setToken(data.token);
+    localStorage.setItem("token", data.token);
+
+    toast({
+      title: "Account created!",
+      description: `Welcome, ${data.user.username}`,
+    });
   };
 
   const logout = () => {

@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { DollarSign, TrendingDown } from "lucide-react";
 import { CategoryBadge } from "@/components/category-badge";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/components/ui/use-toast";
 
 // Helper to get current month in YYYY-MM format
 const getCurrentMonth = () => {
@@ -17,6 +19,25 @@ const getCurrentMonth = () => {
 
 export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  const { toast } = useToast();
+
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
+  });
+
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: Record<string, string> = {
+      USD: "$",
+      EUR: "€",
+      GBP: "£",
+      JPY: "¥",
+      CAD: "C$",
+      AUD: "A$",
+    };
+    return symbols[currency] || "$";
+  };
+
+  const currencySymbol = getCurrencySymbol(settings?.currency || "USD");
 
   const { data: monthlyData, isLoading: monthlyLoading } = useQuery({
     queryKey: ["/api/monthly-data", selectedMonth],
@@ -53,7 +74,7 @@ export default function Dashboard() {
 
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === "string" ? parseFloat(amount) : amount;
-    return `$${num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const income = monthlyData?.income ? parseFloat(monthlyData.income) : 0;
@@ -85,9 +106,9 @@ export default function Dashboard() {
       <Card className="p-6">
         <p className="text-sm text-muted-foreground mb-2">Net Income</p>
         <p className="text-4xl font-bold tabular-nums mb-6" data-testid="text-net-income">
-          {formatCurrency(netIncome)}
+          {currencySymbol}{formatCurrency(netIncome)}
         </p>
-        
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -95,7 +116,7 @@ export default function Dashboard() {
               Income
             </p>
             <p className="text-lg font-semibold tabular-nums text-green-600 dark:text-green-400 mt-1" data-testid="text-income">
-              {formatCurrency(income)}
+              {currencySymbol}{formatCurrency(income)}
             </p>
           </div>
           <div>
@@ -103,7 +124,7 @@ export default function Dashboard() {
               Expenses
             </p>
             <p className="text-lg font-semibold tabular-nums text-red-600 dark:text-red-400 mt-1" data-testid="text-expenses">
-              {formatCurrency(expenses)}
+              {currencySymbol}{formatCurrency(expenses)}
             </p>
           </div>
           <div>
@@ -111,7 +132,7 @@ export default function Dashboard() {
               Saved
             </p>
             <p className="text-lg font-semibold tabular-nums mt-1" data-testid="text-savings">
-              {formatCurrency(savings)}
+              {currencySymbol}{formatCurrency(savings)}
             </p>
           </div>
           <div>
@@ -119,7 +140,7 @@ export default function Dashboard() {
               Invested
             </p>
             <p className="text-lg font-semibold tabular-nums mt-1" data-testid="text-investments">
-              {formatCurrency(investments)}
+              {currencySymbol}{formatCurrency(investments)}
             </p>
           </div>
         </div>
@@ -129,13 +150,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-4">
         <StatCard
           label="Monthly Income"
-          value={formatCurrency(income)}
+          value={`${currencySymbol}${formatCurrency(income)}`}
           icon={DollarSign}
           testId="stat-income"
         />
         <StatCard
           label="Monthly Expenses"
-          value={formatCurrency(expenses)}
+          value={`${currencySymbol}${formatCurrency(expenses)}`}
           icon={TrendingDown}
           testId="stat-expenses"
         />
@@ -151,15 +172,15 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <CategoryBadge name={category.name} color={category.color} />
                   <span className="text-sm font-semibold tabular-nums">
-                    {formatCurrency(category.amount)}
+                    {currencySymbol}{formatCurrency(category.amount)}
                   </span>
                 </div>
-                <Progress 
-                  value={category.percentage} 
+                <Progress
+                  value={category.percentage}
                   className="h-2"
-                  style={{ 
+                  style={{
                     // @ts-ignore
-                    "--progress-background": category.color 
+                    "--progress-background": category.color
                   } as React.CSSProperties}
                 />
                 <p className="text-xs text-muted-foreground text-right tabular-nums">

@@ -43,6 +43,24 @@ export default function Transactions() {
     queryKey: ["/api/categories"],
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
+  });
+
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: Record<string, string> = {
+      USD: "$",
+      EUR: "€",
+      GBP: "£",
+      JPY: "¥",
+      CAD: "C$",
+      AUD: "A$",
+    };
+    return symbols[currency] || "$";
+  };
+
+  const currencySymbol = getCurrencySymbol(settings?.currency || "USD");
+
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
@@ -166,7 +184,7 @@ export default function Transactions() {
     
     const monthYear = newTransaction.date.substring(0, 7);
     createTransactionMutation.mutate({
-      date: new Date(newTransaction.date),
+      date: newTransaction.date, // Send as string, backend will parse it
       provider: newTransaction.provider,
       description: newTransaction.description || newTransaction.provider,
       amount: newTransaction.amount,
@@ -299,7 +317,7 @@ export default function Transactions() {
                                 : "text-foreground"
                             )}
                           >
-                            {parseFloat(transaction.amount) > 0 ? "+" : ""}${Math.abs(parseFloat(transaction.amount)).toFixed(2)}
+                            {parseFloat(transaction.amount) > 0 ? "+" : ""}{currencySymbol}{Math.abs(parseFloat(transaction.amount)).toFixed(2)}
                           </p>
                         </div>
                       </div>

@@ -63,6 +63,12 @@ A mobile-first finance tracker application with intelligent PDF bank statement p
 - **Added Income Tracking** with dedicated page and sub-categories (Salary, Freelance, Investment Returns, Other Income)
 - **Enhanced schema** with `type` field for transactions and categories (income vs expense)
 - **Updated backend** to calculate both income and expenses automatically from transactions
+- **UI Improvements (Oct 27, 2025)**:
+  - Toast notifications auto-dismiss after 1 second
+  - Income category placeholder updated to "e.g., Wage"
+  - Monthly tracking for savings and investments (updates dashboard automatically)
+  - Manual edit capability for pot amounts (for interest/percentage gains)
+  - Replaced browser confirm() with professional shadcn AlertDialog for deletions
 
 ## Development Status
 ✅ Phase 1: Schema & Frontend - COMPLETED

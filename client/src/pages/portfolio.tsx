@@ -15,6 +15,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,6 +45,8 @@ export default function Portfolio() {
   const [addSavingsDialogOpen, setAddSavingsDialogOpen] = useState(false);
   const [addInvestmentsDialogOpen, setAddInvestmentsDialogOpen] = useState(false);
   const [editPotDialogOpen, setEditPotDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [potToDelete, setPotToDelete] = useState<{ id: string; name: string } | null>(null);
   const [newPotName, setNewPotName] = useState("");
   const [selectedPotId, setSelectedPotId] = useState<string>("");
   const [adjustAmount, setAdjustAmount] = useState("");
@@ -166,9 +178,16 @@ export default function Portfolio() {
     setAdjustAmount("");
   };
 
-  const handleDeletePot = (id: string) => {
-    if (confirm("Are you sure you want to delete this pot?")) {
-      deletePotMutation.mutate(id);
+  const handleDeletePot = (id: string, name: string) => {
+    setPotToDelete({ id, name });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (potToDelete) {
+      deletePotMutation.mutate(potToDelete.id);
+      setDeleteDialogOpen(false);
+      setPotToDelete(null);
     }
   };
 
@@ -285,7 +304,7 @@ export default function Portfolio() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeletePot(pot.id)}
+                        onClick={() => handleDeletePot(pot.id, pot.name)}
                         data-testid={`button-delete-pot-${pot.id}`}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
@@ -343,7 +362,7 @@ export default function Portfolio() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeletePot(pot.id)}
+                        onClick={() => handleDeletePot(pot.id, pot.name)}
                         data-testid={`button-delete-pot-${pot.id}`}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
@@ -578,6 +597,31 @@ export default function Portfolio() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+        setDeleteDialogOpen(open);
+        if (!open) setPotToDelete(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {potToDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this pot and all its data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -47,11 +47,31 @@ export const getQueryFn: <T>(options: {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      queryFn: async ({ queryKey }) => {
+        const token = localStorage.getItem("token");
+        const res = await fetch(queryKey[0] as string, {
+          credentials: "include",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (!res.ok) {
+          if (res.status === 401) {
+            localStorage.removeItem("token");
+            window.location.href = "/auth";
+            throw new Error("Unauthorized");
+          }
+          if (res.status >= 500) {
+            throw new Error(`${res.status}: ${res.statusText}`);
+          }
+
+          throw new Error(`${res.status}: ${await res.text()}`);
+        }
+
+        return res.json();
+      },
+      staleTime: 1000 * 60,
       retry: false,
+      refetchOnWindowFocus: false,
     },
     mutations: {
       retry: false,

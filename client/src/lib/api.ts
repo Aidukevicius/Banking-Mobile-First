@@ -4,30 +4,35 @@ export function getAuthToken(): string | null {
 }
 
 // Helper function to make authenticated API requests
-export async function apiRequest(method: string, url: string, data?: any) {
-  const token = getAuthToken();
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-  };
+export async function apiRequest(
+  url: string,
+  options: RequestInit = {}
+): Promise<any> {
+  const token = localStorage.getItem("token");
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  if (!token) {
+    window.location.href = "/auth";
+    throw new Error("No authentication token found");
   }
 
-  const options: RequestInit = {
-    method,
-    headers,
-  };
-
-  if (data) {
-    options.body = JSON.stringify(data);
-  }
-
-  const response = await fetch(url, options);
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+    credentials: "include",
+  });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(error.error || `Request failed with status ${response.status}`);
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/auth";
+      throw new Error("Unauthorized");
+    }
+    const error = await response.text();
+    throw new Error(error || response.statusText);
   }
 
   return response.json();

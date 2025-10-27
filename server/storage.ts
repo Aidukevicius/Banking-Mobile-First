@@ -27,32 +27,32 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // User settings methods
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
   createUserSettings(settings: InsertUserSettings & { userId: string }): Promise<UserSettings>;
   updateUserSettings(userId: string, settings: Partial<InsertUserSettings>): Promise<UserSettings>;
-  
+
   // Category methods
   getCategories(userId: string): Promise<Category[]>;
   getCategory(id: string, userId: string): Promise<Category | undefined>;
   createCategory(category: InsertCategory & { userId: string }): Promise<Category>;
   updateCategory(id: string, userId: string, category: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: string, userId: string): Promise<boolean>;
-  
+
   // Transaction methods
   getTransactions(userId: string, monthYear?: string): Promise<Transaction[]>;
   getTransaction(id: string, userId: string): Promise<Transaction | undefined>;
   createTransaction(transaction: InsertTransaction & { userId: string }): Promise<Transaction>;
   updateTransaction(id: string, userId: string, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   deleteTransaction(id: string, userId: string): Promise<boolean>;
-  
+
   // Category mapping methods
   getCategoryMappings(userId: string): Promise<CategoryMapping[]>;
   getCategoryMappingByProvider(userId: string, provider: string): Promise<CategoryMapping | undefined>;
   createCategoryMapping(mapping: InsertCategoryMapping & { userId: string }): Promise<CategoryMapping>;
   upsertCategoryMapping(userId: string, provider: string, categoryId: string): Promise<CategoryMapping>;
-  
+
   // Monthly data methods
   getMonthlyData(userId: string, monthYear: string): Promise<MonthlyData | undefined>;
   createOrUpdateMonthlyData(data: InsertMonthlyData & { userId: string }): Promise<MonthlyData>;
@@ -195,7 +195,7 @@ export class DatabaseStorage implements IStorage {
 
   async upsertCategoryMapping(userId: string, provider: string, categoryId: string): Promise<CategoryMapping> {
     const existing = await this.getCategoryMappingByProvider(userId, provider);
-    
+
     if (existing) {
       const [updated] = await db
         .update(categoryMappings)
@@ -219,26 +219,45 @@ export class DatabaseStorage implements IStorage {
 
   async createOrUpdateMonthlyData(data: InsertMonthlyData & { userId: string }): Promise<MonthlyData> {
     const existing = await this.getMonthlyData(data.userId, data.monthYear);
-    
+
     if (existing) {
+      // Merge existing data with new data, preserving fields not in the update
+      const updateData = {
+        income: data.income !== undefined ? data.income : existing.income,
+        expenses: data.expenses !== undefined ? data.expenses : existing.expenses,
+        savings: data.savings !== undefined ? data.savings : existing.savings,
+        investments: data.investments !== undefined ? data.investments : existing.investments,
+        updatedAt: new Date(),
+      };
+
       const [updated] = await db
         .update(monthlyData)
-        .set({ ...data, updatedAt: new Date() })
+        .set(updateData)
         .where(and(eq(monthlyData.userId, data.userId), eq(monthlyData.monthYear, data.monthYear)))
         .returning();
       return updated;
     } else {
-      const [created] = await db.insert(monthlyData).values(data).returning();
+      // Set defaults for new records
+      const insertData = {
+        userId: data.userId!,
+        monthYear: data.monthYear!,
+        income: data.income || "0",
+        expenses: data.expenses || "0",
+        savings: data.savings || "0",
+        investments: data.investments || "0",
+      };
+      const [created] = await db.insert(monthlyData).values(insertData).returning();
       return created;
     }
   }
 
   async getAllMonthlyData(userId: string): Promise<MonthlyData[]> {
-    return await db
+    const data = await db
       .select()
       .from(monthlyData)
       .where(eq(monthlyData.userId, userId))
       .orderBy(desc(monthlyData.monthYear));
+    return data || [];
   }
 }
 

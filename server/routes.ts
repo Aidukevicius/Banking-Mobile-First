@@ -22,11 +22,16 @@ async function updateMonthlyData(userId: string, monthYear: string) {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
     
+    // Get existing monthly data to preserve savings and investments
+    const existingData = await storage.getMonthlyData(userId, monthYear);
+    
     await storage.createOrUpdateMonthlyData({
       userId,
       monthYear,
       income: income.toString(),
       expenses: expenses.toString(),
+      savings: existingData.savings || "0",
+      investments: existingData.investments || "0",
     });
   } catch (error) {
     console.error("Error updating monthly data:", error);
@@ -344,8 +349,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentMonth = new Date().toISOString().substring(0, 7);
       const monthlyData = await storage.getMonthlyData(req.userId!, currentMonth);
       res.json({
-        savings: monthlyData?.savings || "0",
-        investments: monthlyData?.investments || "0",
+        savings: monthlyData.savings || "0",
+        investments: monthlyData.investments || "0",
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

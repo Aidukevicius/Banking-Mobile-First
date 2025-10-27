@@ -180,6 +180,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/transactions/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
+      
+      // Get original transaction to track monthYear changes
+      const allTransactions = await storage.getTransactions(req.userId!);
+      const originalTransaction = allTransactions.find(t => t.id === id);
+      const originalMonthYear = originalTransaction?.monthYear;
+      
       const data = insertTransactionSchema.partial().parse(req.body);
       const updateData = {
         ...data,
@@ -195,7 +201,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.upsertCategoryMapping(req.userId!, transaction.provider, data.categoryId);
       }
       
-      // Update monthly expenses
+      // Update monthly expenses for both old and new months if monthYear changed
+      if (originalMonthYear && originalMonthYear !== transaction.monthYear) {
+        await updateMonthlyExpenses(req.userId!, originalMonthYear);
+      }
       await updateMonthlyExpenses(req.userId!, transaction.monthYear);
       
       res.json(transaction);

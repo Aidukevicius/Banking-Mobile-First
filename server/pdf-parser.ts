@@ -1,4 +1,5 @@
-import pdfParse from 'pdf-parse';
+// @ts-ignore - pdf-parse is a CommonJS module
+const pdfParse = require('pdf-parse');
 
 export interface ParsedTransaction {
   date: string;

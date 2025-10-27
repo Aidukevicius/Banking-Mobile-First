@@ -55,67 +55,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (username: string, password: string) => {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      toast({
-        title: "Login failed",
-        description: error.error || "Invalid credentials",
-        variant: "destructive",
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
-      return;
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast({
+          title: "Login failed",
+          description: error.error || "Invalid credentials",
+          variant: "destructive",
+        });
+        throw new Error(error.error || "Login failed");
+      }
+
+      const data = await response.json();
+      setUser(data.user);
+      setToken(data.token);
+      localStorage.setItem("token", data.token);
+      
+      // Clear all cached data to ensure fresh fetch for this user
+      const module = await import("@/lib/queryClient");
+      module.queryClient.clear();
+
+      toast({
+        title: "Welcome back!",
+        description: `Logged in as ${data.user.username}`,
+      });
+    } catch (error) {
+      // Error already handled above, just prevent further execution
+      console.error("Login error:", error);
     }
-
-    const data = await response.json();
-    setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem("token", data.token);
-    
-    // Clear all cached data to ensure fresh fetch for this user
-    const module = await import("@/lib/queryClient");
-    module.queryClient.clear();
-
-    toast({
-      title: "Welcome back!",
-      description: `Logged in as ${data.user.username}`,
-    });
   };
 
   const register = async (username: string, password: string) => {
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      toast({
-        title: "Registration failed",
-        description: error.error || "Could not create account",
-        variant: "destructive",
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
-      return;
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast({
+          title: "Registration failed",
+          description: error.error || "Could not create account",
+          variant: "destructive",
+        });
+        throw new Error(error.error || "Registration failed");
+      }
+
+      const data = await response.json();
+      setUser(data.user);
+      setToken(data.token);
+      localStorage.setItem("token", data.token);
+      
+      // Clear all cached data for fresh start
+      const module = await import("@/lib/queryClient");
+      module.queryClient.clear();
+
+      toast({
+        title: "Account created!",
+        description: `Welcome, ${data.user.username}`,
+      });
+    } catch (error) {
+      // Error already handled above, just prevent further execution
+      console.error("Registration error:", error);
     }
-
-    const data = await response.json();
-    setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem("token", data.token);
-    
-    // Clear all cached data for fresh start
-    const module = await import("@/lib/queryClient");
-    module.queryClient.clear();
-
-    toast({
-      title: "Account created!",
-      description: `Welcome, ${data.user.username}`,
-    });
   };
 
   const logout = () => {

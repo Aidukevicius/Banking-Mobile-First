@@ -1,8 +1,3 @@
-// Helper function to get auth token
-export function getAuthToken(): string | null {
-  return localStorage.getItem("auth_token");
-}
-
 // Helper function to make authenticated API requests
 export async function apiRequest(
   url: string,

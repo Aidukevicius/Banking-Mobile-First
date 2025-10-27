@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("auth_token");
+    const storedToken = localStorage.getItem("token"); // Changed from "auth_token" to "token"
     if (storedToken) {
       setToken(storedToken);
       fetchCurrentUser(storedToken);
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = await response.json();
         setUser(userData);
       } else {
-        localStorage.removeItem("auth_token");
+        localStorage.removeItem("token"); // Changed from "auth_token" to "token"
         setToken(null);
       }
     } catch (error) {
@@ -70,8 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
       setUser(data.user);
       setToken(data.token);
-      localStorage.setItem("auth_token", data.token);
-      
+      localStorage.setItem("token", data.token); // Changed from "auth_token" to "token"
+
       toast({
         title: "Welcome back!",
         description: `Logged in as ${data.user.username}`,
@@ -102,8 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
       setUser(data.user);
       setToken(data.token);
-      localStorage.setItem("auth_token", data.token);
-      
+      localStorage.setItem("token", data.token); // Changed from "auth_token" to "token"
+
       toast({
         title: "Account created!",
         description: `Welcome, ${data.user.username}`,
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem("auth_token");
+    localStorage.removeItem("token"); // Changed from "auth_token" to "token"
     toast({
       title: "Logged out",
       description: "See you next time!",

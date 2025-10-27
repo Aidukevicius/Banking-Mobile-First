@@ -36,18 +36,21 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
         let description = '';
         let provider = '';
 
+        // Build description from non-date, non-amount parts
         for (let i = 0; i < parts.length; i++) {
           if (!parts[i].match(/^\d{4}-\d{2}-\d{2}$/) && !parts[i].match(/^[-+]?\d+\.\d{2}$/)) {
-            if (!provider) {
-              provider = parts[i];
-            }
             description += parts[i] + ' ';
           }
         }
 
+        description = description.trim();
+        
+        // Extract clean provider name using the extractProvider function
+        provider = extractProvider(description);
+
         transactions.push({
           date,
-          description: description.trim() || provider,
+          description: description || 'Transaction',
           provider: provider || 'Unknown',
           amount,
         });

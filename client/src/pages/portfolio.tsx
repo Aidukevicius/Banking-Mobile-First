@@ -63,6 +63,8 @@ export default function Portfolio() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${selectedMonth}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
       toast({ title: "Portfolio updated successfully" });
     },
     onError: (error) => {

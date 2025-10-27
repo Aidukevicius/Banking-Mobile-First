@@ -184,7 +184,7 @@ export default function Transactions() {
 
   const handleCreateTransaction = () => {
     if (!newTransaction.provider || !newTransaction.amount) return;
-    
+
     const monthYear = newTransaction.date.substring(0, 7);
     createTransactionMutation.mutate({
       type: "expense",

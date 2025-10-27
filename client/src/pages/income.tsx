@@ -182,7 +182,7 @@ export default function Income() {
           <div className="text-center space-y-3">
             <p className="text-muted-foreground">No income categories yet</p>
             <p className="text-sm text-muted-foreground">
-              Go to Categories page to create income categories
+              Use the Categories tab in the bottom navigation to create income categories
             </p>
           </div>
         </Card>

@@ -11,16 +11,26 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
     
     // Dynamic import pdf-parse
     const pdfParseModule = await import('pdf-parse');
-    // Use the PDFParse export (named export, not default)
-    const pdfParse = (pdfParseModule as any).PDFParse || pdfParseModule.default || pdfParseModule;
     
-    if (typeof pdfParse !== 'function') {
+    // Try different import patterns
+    let pdfParse;
+    if ((pdfParseModule as any).PDFParse) {
+      // If it's a class, instantiate it
+      const PDFParseClass = (pdfParseModule as any).PDFParse;
+      pdfParse = async (buffer: Buffer) => {
+        const parser = new PDFParseClass();
+        return await parser.parse(buffer);
+      };
+    } else if (typeof pdfParseModule.default === 'function') {
+      pdfParse = pdfParseModule.default;
+    } else if (typeof pdfParseModule === 'function') {
+      pdfParse = pdfParseModule;
+    } else {
       console.error('PDF parse module structure:', Object.keys(pdfParseModule));
-      console.error('PDFParse type:', typeof (pdfParseModule as any).PDFParse);
       throw new Error('Could not find pdf-parse function in module');
     }
     
-    console.log('PDF parse function loaded, type:', typeof pdfParse);
+    console.log('PDF parse function loaded');
     const data = await pdfParse(pdfBuffer);
     const text = data.text;
     console.log('PDF text extracted, length:', text.length);

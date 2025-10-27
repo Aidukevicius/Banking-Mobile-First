@@ -1,6 +1,3 @@
-
-#!/usr/bin/env node
-
 const BASE_URL = 'http://0.0.0.0:5000';
 let authToken = null;
 const testUsername = `testuser_${Date.now()}`;

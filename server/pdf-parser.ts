@@ -1,3 +1,5 @@
+import pdfParse from 'pdf-parse';
+
 export interface ParsedTransaction {
   date: string;
   description: string;

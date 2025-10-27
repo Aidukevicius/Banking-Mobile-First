@@ -32,7 +32,7 @@ export default function Portfolio() {
   const { toast } = useToast();
 
   const { data: monthlyData, isLoading } = useQuery({
-    queryKey: ["/api/monthly-data", selectedMonth],
+    queryKey: [`/api/monthly-data/${selectedMonth}`],
   });
 
   const { data: allMonthlyData = [] } = useQuery({
@@ -61,6 +61,7 @@ export default function Portfolio() {
     mutationFn: (data: any) =>
       apiRequest("PUT", `/api/monthly-data/${selectedMonth}`, data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${selectedMonth}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
       toast({ title: "Portfolio updated successfully" });
     },
@@ -80,7 +81,6 @@ export default function Portfolio() {
     const newValue = Math.max(0, currentValue + adjustment);
 
     updateMonthlyDataMutation.mutate({
-      monthYear: selectedMonth,
       [field]: newValue.toString(),
     });
   };
@@ -126,9 +126,10 @@ export default function Portfolio() {
   }
 
   const updateSavingsMutation = useMutation({
-    mutationFn: (data: { monthYear: string; savings: string }) =>
-      apiRequest("PUT", `/api/monthly-data/${data.monthYear}`, data),
+    mutationFn: (data: { savings: string }) =>
+      apiRequest("PUT", `/api/monthly-data/${selectedMonth}`, data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${selectedMonth}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
       toast({ title: "Savings updated successfully" });
     },
@@ -138,9 +139,10 @@ export default function Portfolio() {
   });
 
   const updateInvestmentsMutation = useMutation({
-    mutationFn: (data: { monthYear: string; investments: string }) =>
-      apiRequest("PUT", `/api/monthly-data/${data.monthYear}`, data),
+    mutationFn: (data: { investments: string }) =>
+      apiRequest("PUT", `/api/monthly-data/${selectedMonth}`, data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${selectedMonth}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
       toast({ title: "Investments updated successfully" });
     },
@@ -154,7 +156,6 @@ export default function Portfolio() {
     if (isNaN(value) && editValue !== "0") return;
 
     updateSavingsMutation.mutate({
-      monthYear: selectedMonth,
       savings: value.toString(),
     });
     setSavingsDialogOpen(false);
@@ -166,7 +167,6 @@ export default function Portfolio() {
     if (isNaN(value) && editValue !== "0") return;
 
     updateInvestmentsMutation.mutate({
-      monthYear: selectedMonth,
       investments: value.toString(),
     });
     setInvestmentsDialogOpen(false);

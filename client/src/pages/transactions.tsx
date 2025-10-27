@@ -184,10 +184,10 @@ export default function Transactions() {
     
     const monthYear = newTransaction.date.substring(0, 7);
     createTransactionMutation.mutate({
-      date: newTransaction.date, // Send as string, backend will parse it
+      date: new Date(newTransaction.date).toISOString(),
       provider: newTransaction.provider,
       description: newTransaction.description || newTransaction.provider,
-      amount: newTransaction.amount,
+      amount: parseFloat(newTransaction.amount).toString(),
       categoryId: newTransaction.categoryId || null,
       monthYear,
     });

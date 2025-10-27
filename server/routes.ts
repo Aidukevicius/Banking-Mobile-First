@@ -8,6 +8,23 @@ import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+async function updateMonthlyExpenses(userId: string, monthYear: string) {
+  try {
+    const transactions = await storage.getTransactions(userId, monthYear);
+    const expenses = transactions
+      .filter(t => parseFloat(t.amount) < 0)
+      .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
+    
+    await storage.createOrUpdateMonthlyData({
+      userId,
+      monthYear,
+      expenses: expenses.toString(),
+    });
+  } catch (error) {
+    console.error("Error updating monthly expenses:", error);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
@@ -150,6 +167,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.userId!,
         date: typeof data.date === 'string' ? new Date(data.date) : data.date,
       });
+      
+      // Update monthly expenses automatically
+      await updateMonthlyExpenses(req.userId!, transaction.monthYear);
+      
       res.json(transaction);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -174,6 +195,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.upsertCategoryMapping(req.userId!, transaction.provider, data.categoryId);
       }
       
+      // Update monthly expenses
+      await updateMonthlyExpenses(req.userId!, transaction.monthYear);
+      
       res.json(transaction);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -183,10 +207,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/transactions/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
+      // Get transaction before deleting to update monthly expenses
+      const transactions = await storage.getTransactions(req.userId!);
+      const transaction = transactions.find(t => t.id === id);
+      
       const deleted = await storage.deleteTransaction(id, req.userId!);
       if (!deleted) {
         return res.status(404).json({ error: "Transaction not found" });
       }
+      
+      // Update monthly expenses if transaction was found
+      if (transaction) {
+        await updateMonthlyExpenses(req.userId!, transaction.monthYear);
+      }
+      
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -209,6 +243,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create transactions with auto-categorization
       const createdTransactions = [];
+      const monthsToUpdate = new Set<string>();
+      
       for (const parsed of parsedTransactions) {
         const monthYear = parsed.date.substring(0, 7); // YYYY-MM
         const categoryId = mappingMap.get(parsed.provider.toLowerCase()) || null;
@@ -224,6 +260,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         createdTransactions.push(transaction);
+        monthsToUpdate.add(monthYear);
+      }
+      
+      // Update monthly expenses for all affected months
+      for (const monthYear of monthsToUpdate) {
+        await updateMonthlyExpenses(req.userId!, monthYear);
       }
       
       res.json({
@@ -276,6 +318,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(mappings);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Portfolio endpoints
+  app.get("/api/portfolio", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const currentMonth = new Date().toISOString().substring(0, 7);
+      const monthlyData = await storage.getMonthlyData(req.userId!, currentMonth);
+      res.json({
+        savings: monthlyData?.savings || "0",
+        investments: monthlyData?.investments || "0",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/portfolio/savings", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { value } = req.body;
+      const currentMonth = new Date().toISOString().substring(0, 7);
+      const monthlyData = await storage.createOrUpdateMonthlyData({
+        userId: req.userId!,
+        monthYear: currentMonth,
+        savings: value,
+      });
+      res.json(monthlyData);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/portfolio/investments", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { value } = req.body;
+      const currentMonth = new Date().toISOString().substring(0, 7);
+      const monthlyData = await storage.createOrUpdateMonthlyData({
+        userId: req.userId!,
+        monthYear: currentMonth,
+        investments: value,
+      });
+      res.json(monthlyData);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   });
 

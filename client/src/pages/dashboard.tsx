@@ -53,9 +53,10 @@ export default function Dashboard() {
 
   const isLoading = monthlyLoading || transactionsLoading;
 
-  // Calculate category breakdown from transactions
-  const categoryBreakdown = categories.map((cat: any) => {
-    const catTransactions = transactions.filter((t: any) => t.categoryId === cat.id);
+  // Calculate category breakdown from transactions (expenses only)
+  const expenseCategories = categories.filter((cat: any) => cat.type === 'expense');
+  const categoryBreakdown = expenseCategories.map((cat: any) => {
+    const catTransactions = transactions.filter((t: any) => t.categoryId === cat.id && t.type === 'expense');
     const total = catTransactions.reduce((sum: number, t: any) => sum + Math.abs(parseFloat(t.amount)), 0);
     return {
       id: cat.id,

@@ -21,6 +21,7 @@ export default function Categories() {
   const [categoryName, setCategoryName] = useState("");
   const [budgetLimit, setBudgetLimit] = useState("");
   const [selectedColor, setSelectedColor] = useState("#3B82F6");
+  const [categoryType, setCategoryType] = useState<"expense" | "income">("expense");
   const { toast } = useToast();
 
   const { data: categories = [], isLoading } = useQuery({
@@ -65,6 +66,7 @@ export default function Categories() {
       setCategoryName(category.name);
       setSelectedColor(category.color);
       setBudgetLimit(category.budgetLimit || "");
+      setCategoryType(category.type || "expense");
     }
     setDialogOpen(true);
   };
@@ -75,6 +77,7 @@ export default function Categories() {
     setCategoryName("");
     setBudgetLimit("");
     setSelectedColor("#3B82F6");
+    setCategoryType("expense");
   };
 
   const handleSaveCategory = () => {
@@ -82,6 +85,7 @@ export default function Categories() {
       name: categoryName,
       color: selectedColor,
       icon: "tag",
+      type: categoryType,
       budgetLimit: budgetLimit || null,
     };
 
@@ -140,7 +144,12 @@ export default function Categories() {
                   <Tag className="w-6 h-6" style={{ color: category.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg">{category.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg">{category.name}</h3>
+                    <Badge variant={category.type === 'income' ? 'default' : 'secondary'}>
+                      {category.type === 'income' ? 'Income' : 'Expense'}
+                    </Badge>
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     {category.budgetLimit && `Budget: $${parseFloat(category.budgetLimit).toFixed(2)}`}
                   </p>
@@ -180,6 +189,19 @@ export default function Categories() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="category-type">Type</Label>
+              <select
+                id="category-type"
+                value={categoryType}
+                onChange={(e) => setCategoryType(e.target.value as "expense" | "income")}
+                className="w-full h-12 px-3 rounded-md border border-input bg-background"
+                data-testid="select-category-type"
+              >
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="category-name">Category Name</Label>
               <Input

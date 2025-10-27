@@ -184,6 +184,7 @@ export default function Transactions() {
     
     const monthYear = newTransaction.date.substring(0, 7);
     createTransactionMutation.mutate({
+      type: "expense",
       date: new Date(newTransaction.date).toISOString(),
       provider: newTransaction.provider,
       description: newTransaction.description || newTransaction.provider,
@@ -461,7 +462,7 @@ export default function Transactions() {
                 className="w-full h-10 px-3 rounded-md border border-input bg-background"
               >
                 <option value="">None</option>
-                {categories.map((cat: any) => (
+                {categories.filter((cat: any) => cat.type === 'expense').map((cat: any) => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
@@ -496,12 +497,12 @@ export default function Transactions() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 py-4">
-            {categories.length === 0 ? (
+            {categories.filter((cat: any) => cat.type === 'expense').length === 0 ? (
               <p className="col-span-2 text-center text-muted-foreground py-4">
-                No categories yet. Create one in the Categories tab first.
+                No expense categories yet. Create one in the Categories tab first.
               </p>
             ) : (
-              categories.map((cat: any) => (
+              categories.filter((cat: any) => cat.type === 'expense').map((cat: any) => (
                 <Button
                   key={cat.id}
                   variant="outline"

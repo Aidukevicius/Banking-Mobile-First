@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { DollarSign, TrendingDown } from "lucide-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 // Helper to get current month in YYYY-MM format
 const getCurrentMonth = () => {

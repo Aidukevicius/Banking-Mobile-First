@@ -257,7 +257,7 @@ export default function Portfolio() {
             <div className="space-y-3">
               {investmentPots.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  No investment pots yet. Create one to start investing!
+                  No investments yet. Create one to start investing!
                 </p>
               ) : (
                 investmentPots.map((pot: any) => (
@@ -376,18 +376,18 @@ export default function Portfolio() {
           <DialogHeader>
             <DialogTitle>Add to Investments</DialogTitle>
             <DialogDescription>
-              Add money to an existing pot or create a new one
+              Add money to an existing investment or create a new one
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="investments-pot">Select Pot</Label>
+              <Label htmlFor="investments-pot">Choose Investment</Label>
               <Select value={selectedPotId} onValueChange={setSelectedPotId}>
                 <SelectTrigger id="investments-pot">
-                  <SelectValue placeholder="Choose a pot or create new" />
+                  <SelectValue placeholder="Choose an investment or create new" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="new">+ Create New Pot</SelectItem>
+                  <SelectItem value="new">+ Create New Investment</SelectItem>
                   {investmentPots.map((pot: any) => (
                     <SelectItem key={pot.id} value={pot.id}>
                       {pot.name} ({currencySymbol}{parseFloat(pot.amount).toLocaleString()})
@@ -399,7 +399,7 @@ export default function Portfolio() {
 
             {selectedPotId === "new" && (
               <div className="space-y-2">
-                <Label htmlFor="new-investment-pot-name">Pot Name</Label>
+                <Label htmlFor="new-investment-pot-name">Investment Name</Label>
                 <Input
                   id="new-investment-pot-name"
                   placeholder="e.g., Stocks Portfolio"

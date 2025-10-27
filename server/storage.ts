@@ -62,7 +62,7 @@ export interface IStorage {
   getAllMonthlyData(userId: string): Promise<MonthlyData[]>;
 
   // Savings Pot methods
-  getSavingsPots(userId: string): Promise<SavingsPot[]>;
+  getSavingsPots(userId: string, type?: string): Promise<SavingsPot[]>;
   getSavingsPot(id: string, userId: string): Promise<SavingsPot | undefined>;
   createSavingsPot(pot: InsertSavingsPot & { userId: string }): Promise<SavingsPot>;
   updateSavingsPot(id: string, userId: string, pot: Partial<InsertSavingsPot>): Promise<SavingsPot | undefined>;
@@ -271,7 +271,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Savings Pot methods
-  async getSavingsPots(userId: string): Promise<SavingsPot[]> {
+  async getSavingsPots(userId: string, type?: string): Promise<SavingsPot[]> {
+    if (type) {
+      return await db
+        .select()
+        .from(savingsPots)
+        .where(and(eq(savingsPots.userId, userId), eq(savingsPots.type, type)))
+        .orderBy(savingsPots.name);
+    }
     return await db.select().from(savingsPots).where(eq(savingsPots.userId, userId)).orderBy(savingsPots.name);
   }
 

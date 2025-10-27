@@ -287,41 +287,24 @@ export default function Transactions() {
                       }}
                       data-testid={`card-transaction-${transaction.id}`}
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold truncate">
-                              {transaction.provider}
-                            </p>
-                            {!transaction.categoryId && (
-                              <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700">
-                                <AlertCircle className="w-3 h-3 mr-1" />
-                                Uncategorized
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {transaction.description}
-                          </p>
-                          {category && (
-                            <div className="mt-2">
-                              <CategoryBadge
-                                name={category.name}
-                                color={category.color}
-                              />
-                            </div>
-                          )}
+                          <p className="font-medium truncate">{transaction.provider}</p>
+                          <p className="text-sm text-muted-foreground">{transaction.description}</p>
                         </div>
-                        <div className="text-right">
-                          <p
-                            className={cn(
-                              "text-lg font-semibold tabular-nums",
-                              parseFloat(transaction.amount) > 0
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-foreground"
-                            )}
-                          >
-                            {parseFloat(transaction.amount) > 0 ? "+" : ""}{currencySymbol}{Math.abs(parseFloat(transaction.amount)).toFixed(2)}
+                        <div className="flex items-center gap-3">
+                          {transaction.categoryId ? (
+                            <CategoryBadge categoryId={transaction.categoryId} categories={categories} />
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              Uncategorized
+                            </Badge>
+                          )}
+                          <p className={`text-lg font-semibold tabular-nums whitespace-nowrap ${
+                            transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {transaction.type === 'expense' ? '-' : '+'}
+                            {currencySymbol}{parseFloat(transaction.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                           </p>
                         </div>
                       </div>

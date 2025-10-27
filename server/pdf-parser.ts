@@ -5,20 +5,15 @@ export interface ParsedTransaction {
   amount: number;
 }
 
-let pdfParse: any = null;
-
-async function getPdfParse() {
-  if (!pdfParse) {
-    const pdfParseModule = await import('pdf-parse');
-    pdfParse = pdfParseModule.default || pdfParseModule;
-  }
-  return pdfParse;
-}
-
 export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransaction[]> {
   try {
     console.log('Starting PDF parse, buffer size:', pdfBuffer.length);
-    const pdfParseFunc = await getPdfParse();
+    
+    // Dynamic import pdf-parse
+    const pdfParseModule = await import('pdf-parse');
+    const pdfParseFunc = pdfParseModule.default;
+    
+    console.log('PDF parse function loaded, type:', typeof pdfParseFunc);
     const data = await pdfParseFunc(pdfBuffer);
     const text = data.text;
     console.log('PDF text extracted, length:', text.length);

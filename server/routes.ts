@@ -387,6 +387,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Savings pots routes
+  app.get("/api/savings-pots", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const type = req.query.type as string | undefined;
+      const pots = await storage.getSavingsPots(req.userId!, type);
+      res.json(pots);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/savings-pots", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const data = req.body;
+      const pot = await storage.createSavingsPot({ ...data, userId: req.userId! });
+      res.json(pot);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/savings-pots/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+      const pot = await storage.updateSavingsPot(id, req.userId!, data);
+      if (!pot) {
+        return res.status(404).json({ error: "Savings pot not found" });
+      }
+      res.json(pot);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/savings-pots/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteSavingsPot(id, req.userId!);
+      if (!deleted) {
+        return res.status(404).json({ error: "Savings pot not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

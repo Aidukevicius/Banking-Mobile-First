@@ -54,6 +54,17 @@ export const categoryMappings = pgTable("category_mappings", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Savings pots table
+export const savingsPots = pgTable("savings_pots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  type: varchar("type", { length: 20 }).notNull().default("savings"), // "savings" or "investments"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Monthly data table
 export const monthlyData = pgTable("monthly_data", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -73,6 +84,14 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   transactions: many(transactions),
   categoryMappings: many(categoryMappings),
   monthlyData: many(monthlyData),
+  savingsPots: many(savingsPots),
+}));
+
+export const savingsPotsRelations = relations(savingsPots, ({ one }) => ({
+  user: one(users, {
+    fields: [savingsPots.userId],
+    references: [users.id],
+  }),
 }));
 
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
@@ -137,6 +156,13 @@ export const insertMonthlyDataSchema = createInsertSchema(monthlyData).omit({
   investments: z.string().or(z.number()).optional(),
 });
 
+export const insertSavingsPotSchema = createInsertSchema(savingsPots).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -155,3 +181,6 @@ export type InsertCategoryMapping = z.infer<typeof insertCategoryMappingSchema>;
 
 export type MonthlyData = typeof monthlyData.$inferSelect;
 export type InsertMonthlyData = z.infer<typeof insertMonthlyDataSchema>;
+
+export type SavingsPot = typeof savingsPots.$inferSelect;
+export type InsertSavingsPot = z.infer<typeof insertSavingsPotSchema>;

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, TrendingUp, Pencil, Plus, Minus } from "lucide-react";
+import { Wallet, TrendingUp, Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,30 +14,31 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { MonthSelector } from "@/components/month-selector";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
-const getCurrentMonth = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-};
-
 export default function Portfolio() {
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
-  const [savingsDialogOpen, setSavingsDialogOpen] = useState(false);
-  const [investmentsDialogOpen, setInvestmentsDialogOpen] = useState(false);
-  const [editValue, setEditValue] = useState("");
+  const [addSavingsDialogOpen, setAddSavingsDialogOpen] = useState(false);
+  const [addInvestmentsDialogOpen, setAddInvestmentsDialogOpen] = useState(false);
+  const [newPotName, setNewPotName] = useState("");
+  const [selectedPotId, setSelectedPotId] = useState<string>("");
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [currentType, setCurrentType] = useState<"savings" | "investments">("savings");
   const { toast } = useToast();
 
-  const { data: monthlyData, isLoading } = useQuery({
-    queryKey: [`/api/monthly-data/${selectedMonth}`],
+  const { data: savingsPots = [], isLoading: savingsLoading } = useQuery({
+    queryKey: ["/api/savings-pots", { type: "savings" }],
   });
 
-  const { data: allMonthlyData = [] } = useQuery({
-    queryKey: ["/api/monthly-data"],
+  const { data: investmentPots = [], isLoading: investmentsLoading } = useQuery({
+    queryKey: ["/api/savings-pots", { type: "investments" }],
   });
 
   const { data: settings } = useQuery({
@@ -57,93 +59,100 @@ export default function Portfolio() {
 
   const currencySymbol = getCurrencySymbol(settings?.currency || "USD");
 
-  const updateMonthlyDataMutation = useMutation({
-    mutationFn: (data: any) =>
-      apiRequest("PUT", `/api/monthly-data/${selectedMonth}`, data),
+  const createPotMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/savings-pots", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${selectedMonth}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      toast({ title: "Portfolio updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/savings-pots"] });
+      toast({ title: "Pot created successfully" });
     },
-    onError: (error) => {
-      toast({ title: "Error updating portfolio", description: error.message, variant: "destructive" });
-    }
   });
+
+  const updatePotMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      apiRequest("PUT", `/api/savings-pots/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/savings-pots"] });
+      toast({ title: "Amount added successfully" });
+    },
+  });
+
+  const deletePotMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/savings-pots/${id}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/savings-pots"] });
+      toast({ title: "Pot deleted successfully" });
+    },
+  });
+
+  const totalSavings = savingsPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
+  const totalInvestments = investmentPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
+
+  const handleOpenDialog = (type: "savings" | "investments") => {
+    setCurrentType(type);
+    setSelectedPotId("");
+    setNewPotName("");
+    setAdjustAmount("");
+    if (type === "savings") {
+      setAddSavingsDialogOpen(true);
+    } else {
+      setAddInvestmentsDialogOpen(true);
+    }
+  };
+
+  const handleAddAmount = () => {
+    const amount = parseFloat(adjustAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: "Please enter a valid amount", variant: "destructive" });
+      return;
+    }
+
+    if (selectedPotId === "new") {
+      if (!newPotName.trim()) {
+        toast({ title: "Please enter a pot name", variant: "destructive" });
+        return;
+      }
+      createPotMutation.mutate({
+        name: newPotName,
+        amount: amount.toString(),
+        type: currentType,
+      });
+    } else if (selectedPotId) {
+      const pots = currentType === "savings" ? savingsPots : investmentPots;
+      const pot = pots.find((p: any) => p.id === selectedPotId);
+      if (pot) {
+        const newAmount = parseFloat(pot.amount) + amount;
+        updatePotMutation.mutate({
+          id: selectedPotId,
+          data: { amount: newAmount.toString() },
+        });
+      }
+    } else {
+      toast({ title: "Please select or create a pot", variant: "destructive" });
+      return;
+    }
+
+    setAddSavingsDialogOpen(false);
+    setAddInvestmentsDialogOpen(false);
+    setSelectedPotId("");
+    setNewPotName("");
+    setAdjustAmount("");
+  };
+
+  const handleDeletePot = (id: string) => {
+    if (confirm("Are you sure you want to delete this pot?")) {
+      deletePotMutation.mutate(id);
+    }
+  };
 
   const quickAdjustments = [100, 500, 1000];
 
-  const currentSavings = parseFloat(monthlyData?.savings || "0");
-  const currentInvestments = parseFloat(monthlyData?.investments || "0");
-
-  const handleQuickAdjust = (amount: number, type: "add" | "subtract", field: "savings" | "investments") => {
-    const currentValue = field === "savings" ? currentSavings : currentInvestments;
-    const adjustment = type === "add" ? amount : -amount;
-    const newValue = Math.max(0, currentValue + adjustment);
-
-    updateMonthlyDataMutation.mutate({
-      [field]: newValue.toString(),
-    });
-  };
-
-  const handleSaveEdit = (isInvestments: boolean) => {
-    const value = parseFloat(editValue);
-    if (isNaN(value) || value < 0) return;
-
-    updateMonthlyDataMutation.mutate({
-      monthYear: selectedMonth,
-      [isInvestments ? "investments" : "savings"]: value.toString(),
-    });
-
-    if (isInvestments) {
-      setInvestmentsDialogOpen(false);
-    } else {
-      setSavingsDialogOpen(false);
-    }
-    setEditValue("");
-  };
-
-  const getHistory = (field: "savings" | "investments") => {
-    return allMonthlyData
-      .filter((data: any) => parseFloat(data[field]) > 0)
-      .slice(0, 3)
-      .map((data: any) => {
-        const date = new Date(data.monthYear + "-01");
-        const month = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-        const amount = parseFloat(data[field]);
-        return { month, amount, change: 0 };
-      });
-  };
-
-  const handleSavingsUpdate = () => {
-    const value = parseFloat(editValue);
-    if (isNaN(value) && editValue !== "0") return;
-
-    updateMonthlyDataMutation.mutate({
-      savings: value.toString(),
-    });
-    setSavingsDialogOpen(false);
-    setEditValue("");
-  };
-
-  const handleInvestmentsUpdate = () => {
-    const value = parseFloat(editValue);
-    if (isNaN(value) && editValue !== "0") return;
-
-    updateMonthlyDataMutation.mutate({
-      investments: value.toString(),
-    });
-    setInvestmentsDialogOpen(false);
-    setEditValue("");
-  };
+  const isLoading = savingsLoading || investmentsLoading;
 
   if (isLoading) {
     return (
       <div className="pb-20 px-4 pt-6 max-w-lg mx-auto space-y-6">
         <div className="h-12 bg-card rounded-lg animate-pulse" />
         <div className="h-32 bg-card rounded-lg animate-pulse" />
-        <div className="h-12 bg-card rounded-lg animate-pulse" />
         <div className="h-64 bg-card rounded-lg animate-pulse" />
       </div>
     );
@@ -154,7 +163,7 @@ export default function Portfolio() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold mb-2">Portfolio</h1>
-        <MonthSelector month={selectedMonth} onMonthChange={setSelectedMonth} />
+        <p className="text-sm text-muted-foreground">Manage your savings and investments</p>
       </div>
 
       {/* Total Portfolio */}
@@ -162,7 +171,7 @@ export default function Portfolio() {
         <p className="text-sm text-muted-foreground mb-2">Total Portfolio Value</p>
         <p className="text-4xl font-bold tabular-nums" data-testid="text-total-portfolio">
           {currencySymbol}{" "}
-          {(currentSavings + currentInvestments).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {(totalSavings + totalInvestments).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
       </Card>
 
@@ -183,75 +192,46 @@ export default function Portfolio() {
           <Card className="p-6">
             <div className="flex items-start justify-between mb-6">
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Current Savings</p>
+                <p className="text-sm text-muted-foreground mb-2">Total Savings</p>
                 <p className="text-3xl font-bold tabular-nums" data-testid="text-savings-value">
                   {currencySymbol}{" "}
-                  {currentSavings.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {totalSavings.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
               <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  setEditValue(currentSavings.toString());
-                  setSavingsDialogOpen(true);
-                }}
-                data-testid="button-edit-savings"
+                onClick={() => handleOpenDialog("savings")}
+                data-testid="button-add-savings"
               >
-                <Pencil className="w-4 h-4" />
+                <Plus className="w-4 h-4 mr-2" />
+                Add
               </Button>
             </div>
 
             <div className="space-y-3">
-              <p className="text-sm font-medium">Quick Adjust</p>
-              <div className="grid grid-cols-3 gap-2">
-                {quickAdjustments.map((amount) => (
-                  <div key={amount} className="space-y-1">
+              {savingsPots.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No savings pots yet. Create one to start saving!
+                </p>
+              ) : (
+                savingsPots.map((pot: any) => (
+                  <div key={pot.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{pot.name}</p>
+                      <p className="text-lg font-semibold tabular-nums">
+                        {currencySymbol}{parseFloat(pot.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleQuickAdjust(amount, "add", "savings")}
-                      className="w-full"
-                      data-testid={`button-add-${amount}`}
-                      disabled={updateMonthlyDataMutation.isPending}
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeletePot(pot.id)}
                     >
-                      <Plus className="w-3 h-3 mr-1" />
-                      {currencySymbol}{amount}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleQuickAdjust(amount, "subtract", "savings")}
-                      className="w-full"
-                      data-testid={`button-subtract-${amount}`}
-                      disabled={updateMonthlyDataMutation.isPending}
-                    >
-                      <Minus className="w-3 h-3 mr-1" />
-                      {currencySymbol}{amount}
+                      <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          </Card>
-
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Savings History</h3>
-            {getHistory("savings").length > 0 ? (
-              <div className="space-y-3">
-                {getHistory("savings").map((entry: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">{entry.month}</span>
-                    <p className="text-sm font-semibold tabular-nums">
-                      {currencySymbol}{" "}
-                      {entry.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No history available</p>
-            )}
           </Card>
         </TabsContent>
 
@@ -259,182 +239,219 @@ export default function Portfolio() {
           <Card className="p-6">
             <div className="flex items-start justify-between mb-6">
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Current Investments</p>
+                <p className="text-sm text-muted-foreground mb-2">Total Investments</p>
                 <p className="text-3xl font-bold tabular-nums" data-testid="text-investments-value">
                   {currencySymbol}{" "}
-                  {currentInvestments.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {totalInvestments.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
               <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  setEditValue(currentInvestments.toString());
-                  setInvestmentsDialogOpen(true);
-                }}
-                data-testid="button-edit-investments"
+                onClick={() => handleOpenDialog("investments")}
+                data-testid="button-add-investments"
               >
-                <Pencil className="w-4 h-4" />
+                <Plus className="w-4 h-4 mr-2" />
+                Add
               </Button>
             </div>
 
             <div className="space-y-3">
-              <p className="text-sm font-medium">Quick Adjust</p>
-              <div className="grid grid-cols-3 gap-2">
-                {quickAdjustments.map((amount) => (
-                  <div key={amount} className="space-y-1">
+              {investmentPots.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No investment pots yet. Create one to start investing!
+                </p>
+              ) : (
+                investmentPots.map((pot: any) => (
+                  <div key={pot.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{pot.name}</p>
+                      <p className="text-lg font-semibold tabular-nums">
+                        {currencySymbol}{parseFloat(pot.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleQuickAdjust(amount, "add", "investments")}
-                      className="w-full"
-                      disabled={updateMonthlyDataMutation.isPending}
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeletePot(pot.id)}
                     >
-                      <Plus className="w-3 h-3 mr-1" />
-                      {currencySymbol}{amount}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleQuickAdjust(amount, "subtract", "investments")}
-                      className="w-full"
-                      disabled={updateMonthlyDataMutation.isPending}
-                    >
-                      <Minus className="w-3 h-3 mr-1" />
-                      {currencySymbol}{amount}
+                      <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          </Card>
-
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Investment History</h3>
-            {getHistory("investments").length > 0 ? (
-              <div className="space-y-3">
-                {getHistory("investments").map((entry: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">{entry.month}</span>
-                    <p className="text-sm font-semibold tabular-nums">
-                      {currencySymbol}{" "}
-                      {entry.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No history available</p>
-            )}
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Edit Savings Dialog */}
-      <Dialog open={savingsDialogOpen} onOpenChange={setSavingsDialogOpen}>
+      {/* Add to Savings Dialog */}
+      <Dialog open={addSavingsDialogOpen} onOpenChange={setAddSavingsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Savings</DialogTitle>
+            <DialogTitle>Add to Savings</DialogTitle>
             <DialogDescription>
-              Enter the new total savings amount for {selectedMonth}.
+              Add money to an existing pot or create a new one
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="savings-value">Savings Amount</Label>
+              <Label htmlFor="savings-pot">Select Pot</Label>
+              <Select value={selectedPotId} onValueChange={setSelectedPotId}>
+                <SelectTrigger id="savings-pot">
+                  <SelectValue placeholder="Choose a pot or create new" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">+ Create New Pot</SelectItem>
+                  {savingsPots.map((pot: any) => (
+                    <SelectItem key={pot.id} value={pot.id}>
+                      {pot.name} ({currencySymbol}{parseFloat(pot.amount).toLocaleString()})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedPotId === "new" && (
+              <div className="space-y-2">
+                <Label htmlFor="new-pot-name">Pot Name</Label>
+                <Input
+                  id="new-pot-name"
+                  placeholder="e.g., Emergency Fund"
+                  value={newPotName}
+                  onChange={(e) => setNewPotName(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount ({currencySymbol})</Label>
               <Input
-                id="savings-value"
+                id="amount"
                 type="number"
+                step="0.01"
                 placeholder="0.00"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="h-12 text-right text-2xl tabular-nums"
-                data-testid="input-edit-savings"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)}
+                className="text-right tabular-nums"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Quick Add</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {quickAdjustments.map((amount) => (
+                  <Button
+                    key={amount}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAdjustAmount(amount.toString())}
+                  >
+                    {currencySymbol}{amount}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => setSavingsDialogOpen(false)}
+              onClick={() => setAddSavingsDialogOpen(false)}
               className="flex-1"
-              data-testid="button-cancel-savings"
             >
               Cancel
             </Button>
             <Button
-              variant="destructive"
-              onClick={() => {
-                setEditValue("0");
-                handleSavingsUpdate();
-              }}
-              disabled={updateMonthlyDataMutation.isPending}
-              data-testid="button-clear-savings"
-            >
-              Clear
-            </Button>
-            <Button
-              onClick={handleSavingsUpdate}
-              disabled={updateMonthlyDataMutation.isPending}
+              onClick={handleAddAmount}
+              disabled={createPotMutation.isPending || updatePotMutation.isPending}
               className="flex-1"
-              data-testid="button-update-savings"
             >
-              Save
+              Add
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Investments Dialog */}
-      <Dialog open={investmentsDialogOpen} onOpenChange={setInvestmentsDialogOpen}>
+      {/* Add to Investments Dialog */}
+      <Dialog open={addInvestmentsDialogOpen} onOpenChange={setAddInvestmentsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Investments</DialogTitle>
+            <DialogTitle>Add to Investments</DialogTitle>
             <DialogDescription>
-              Enter the new total investment value for {selectedMonth}.
+              Add money to an existing pot or create a new one
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="investments-value">Investment Value</Label>
+              <Label htmlFor="investments-pot">Select Pot</Label>
+              <Select value={selectedPotId} onValueChange={setSelectedPotId}>
+                <SelectTrigger id="investments-pot">
+                  <SelectValue placeholder="Choose a pot or create new" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">+ Create New Pot</SelectItem>
+                  {investmentPots.map((pot: any) => (
+                    <SelectItem key={pot.id} value={pot.id}>
+                      {pot.name} ({currencySymbol}{parseFloat(pot.amount).toLocaleString()})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedPotId === "new" && (
+              <div className="space-y-2">
+                <Label htmlFor="new-investment-pot-name">Pot Name</Label>
+                <Input
+                  id="new-investment-pot-name"
+                  placeholder="e.g., Stocks Portfolio"
+                  value={newPotName}
+                  onChange={(e) => setNewPotName(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="investment-amount">Amount ({currencySymbol})</Label>
               <Input
-                id="investments-value"
+                id="investment-amount"
                 type="number"
+                step="0.01"
                 placeholder="0.00"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="h-12 text-right text-2xl tabular-nums"
-                data-testid="input-edit-investments"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)}
+                className="text-right tabular-nums"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Quick Add</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {quickAdjustments.map((amount) => (
+                  <Button
+                    key={amount}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAdjustAmount(amount.toString())}
+                  >
+                    {currencySymbol}{amount}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => setInvestmentsDialogOpen(false)}
+              onClick={() => setAddInvestmentsDialogOpen(false)}
               className="flex-1"
-              data-testid="button-cancel-investments"
             >
               Cancel
             </Button>
             <Button
-              variant="destructive"
-              onClick={() => {
-                setEditValue("0");
-                handleInvestmentsUpdate();
-              }}
-              disabled={updateMonthlyDataMutation.isPending}
-              data-testid="button-clear-investments"
-            >
-              Clear
-            </Button>
-            <Button
-              onClick={handleInvestmentsUpdate}
-              disabled={updateMonthlyDataMutation.isPending}
+              onClick={handleAddAmount}
+              disabled={createPotMutation.isPending || updatePotMutation.isPending}
               className="flex-1"
-              data-testid="button-update-investments"
             >
-              Save
+              Add
             </Button>
           </div>
         </DialogContent>

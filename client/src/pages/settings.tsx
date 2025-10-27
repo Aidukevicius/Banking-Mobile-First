@@ -15,10 +15,11 @@ import { useAuth } from "@/lib/auth-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { User } from "lucide-react";
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { toast } = useToast();
 
   const { data: settings, isLoading } = useQuery({
@@ -76,6 +77,26 @@ export default function Settings() {
     <div className="pb-20 px-4 pt-6 max-w-lg mx-auto space-y-6">
       {/* Header */}
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      {/* Account Info Section */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          Account
+        </h2>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <User className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <Label className="text-base font-medium">Username</Label>
+              <p className="text-sm text-muted-foreground">
+                {user?.username || 'Not logged in'}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {/* Appearance Section */}
       <div className="space-y-3">
@@ -143,10 +164,10 @@ export default function Settings() {
         </Card>
       </div>
 
-      {/* Account Section */}
+      {/* Logout Section */}
       <div className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-          Account
+          Logout
         </h2>
         <Card className="p-4">
           <Button

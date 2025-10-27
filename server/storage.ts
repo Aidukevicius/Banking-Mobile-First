@@ -6,6 +6,7 @@ import {
   transactions,
   categoryMappings,
   monthlyData,
+  savingsPots,
   type User,
   type InsertUser,
   type UserSettings,
@@ -18,6 +19,8 @@ import {
   type InsertCategoryMapping,
   type MonthlyData,
   type InsertMonthlyData,
+  type SavingsPot,
+  type InsertSavingsPot,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -57,6 +60,13 @@ export interface IStorage {
   getMonthlyData(userId: string, monthYear: string): Promise<MonthlyData | undefined>;
   createOrUpdateMonthlyData(data: InsertMonthlyData & { userId: string }): Promise<MonthlyData>;
   getAllMonthlyData(userId: string): Promise<MonthlyData[]>;
+
+  // Savings Pot methods
+  getSavingsPots(userId: string): Promise<SavingsPot[]>;
+  getSavingsPot(id: string, userId: string): Promise<SavingsPot | undefined>;
+  createSavingsPot(pot: InsertSavingsPot & { userId: string }): Promise<SavingsPot>;
+  updateSavingsPot(id: string, userId: string, pot: Partial<InsertSavingsPot>): Promise<SavingsPot | undefined>;
+  deleteSavingsPot(id: string, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -258,6 +268,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(monthlyData.userId, userId))
       .orderBy(desc(monthlyData.monthYear));
     return data || [];
+  }
+
+  // Savings Pot methods
+  async getSavingsPots(userId: string): Promise<SavingsPot[]> {
+    return await db.select().from(savingsPots).where(eq(savingsPots.userId, userId)).orderBy(savingsPots.name);
+  }
+
+  async getSavingsPot(id: string, userId: string): Promise<SavingsPot | undefined> {
+    const [pot] = await db
+      .select()
+      .from(savingsPots)
+      .where(and(eq(savingsPots.id, id), eq(savingsPots.userId, userId)));
+    return pot || undefined;
+  }
+
+  async createSavingsPot(pot: InsertSavingsPot & { userId: string }): Promise<SavingsPot> {
+    const [created] = await db.insert(savingsPots).values(pot).returning();
+    return created;
+  }
+
+  async updateSavingsPot(id: string, userId: string, pot: Partial<InsertSavingsPot>): Promise<SavingsPot | undefined> {
+    const [updated] = await db
+      .update(savingsPots)
+      .set(pot)
+      .where(and(eq(savingsPots.id, id), eq(savingsPots.userId, userId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteSavingsPot(id: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(savingsPots)
+      .where(and(eq(savingsPots.id, id), eq(savingsPots.userId, userId)));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 }
 

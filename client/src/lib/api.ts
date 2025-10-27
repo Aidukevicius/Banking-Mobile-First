@@ -6,25 +6,32 @@ export function getAuthToken(): string | null {
 
 // Helper function to make authenticated API requests
 export async function apiRequest(
+  method: string,
   url: string,
-  options: RequestInit = {}
+  data?: any
 ): Promise<any> {
   const token = getAuthToken();
 
   if (!token) {
+    localStorage.removeItem("token");
     window.location.href = "/auth";
     throw new Error("No authentication token found");
   }
 
-  const response = await fetch(url, {
-    ...options,
+  const options: RequestInit = {
+    method,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      ...options.headers,
     },
     credentials: "include",
-  });
+  };
+
+  if (data && (method === "POST" || method === "PUT" || method === "PATCH")) {
+    options.body = JSON.stringify(data);
+  }
+
+  const response = await fetch(url, options);
 
   if (!response.ok) {
     if (response.status === 401) {

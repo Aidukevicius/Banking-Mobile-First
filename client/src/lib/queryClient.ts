@@ -56,6 +56,11 @@ export const queryClient = new QueryClient({
       queryFn: async ({ queryKey }) => {
         const token = localStorage.getItem("token");
         
+        if (!token) {
+          window.location.href = "/auth";
+          throw new Error("No authentication token");
+        }
+        
         // Build URL with query parameters if present
         let url = queryKey[0] as string;
         if (queryKey.length > 1 && typeof queryKey[1] === 'object' && queryKey[1] !== null) {
@@ -73,7 +78,10 @@ export const queryClient = new QueryClient({
         
         const res = await fetch(url, {
           credentials: "include",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         });
 
         if (!res.ok) {
@@ -91,9 +99,9 @@ export const queryClient = new QueryClient({
 
         return res.json();
       },
-      staleTime: 1000 * 60,
+      staleTime: 0, // Always fetch fresh data for user-specific content
       retry: false,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true, // Refetch when window regains focus
     },
     mutations: {
       retry: false,

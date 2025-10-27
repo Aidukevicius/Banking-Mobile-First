@@ -261,7 +261,7 @@ export default function Income() {
               <Label htmlFor="income-description">Description</Label>
               <Input
                 id="income-description"
-                placeholder="e.g., Monthly Salary"
+                placeholder="e.g., Wage"
                 value={newIncome.description}
                 onChange={(e) => setNewIncome({ ...newIncome, description: e.target.value })}
                 data-testid="input-income-description"

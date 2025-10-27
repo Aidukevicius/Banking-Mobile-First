@@ -139,7 +139,7 @@ export default function Portfolio() {
     const currentMonth = new Date().toISOString().substring(0, 7);
     
     try {
-      if (selectedPotId) {
+      if (selectedPotId && selectedPotId !== "new") {
         // Update existing pot
         const pot = (currentType === "savings" ? savingsPots : investmentPots).find(
           (p: any) => p.id === selectedPotId
@@ -151,13 +151,16 @@ export default function Portfolio() {
             data: { amount: newAmount },
           });
         }
-      } else if (newPotName.trim()) {
+      } else if (selectedPotId === "new" && newPotName.trim()) {
         // Create new pot
         await createPotMutation.mutateAsync({
           name: newPotName,
           amount: amount.toString(),
           type: currentType,
         });
+      } else {
+        toast({ title: "Please select a pot or enter a name for new pot", variant: "destructive" });
+        return;
       }
 
       // Calculate new totals after mutation completes
@@ -190,48 +193,6 @@ export default function Portfolio() {
     } catch (error: any) {
       toast({ title: "Error updating pot", description: error.message, variant: "destructive" });
     }
-    }
-
-    if (selectedPotId === "new") {
-      if (!newPotName.trim()) {
-        toast({ title: "Please enter a pot name", variant: "destructive" });
-        return;
-      }
-      await createPotMutation.mutateAsync({
-        name: newPotName,
-        amount: amount.toString(),
-        type: currentType,
-      });
-    } else if (selectedPotId) {
-      const pots = currentType === "savings" ? savingsPots : investmentPots;
-      const pot = pots.find((p: any) => p.id === selectedPotId);
-      if (pot) {
-        const newAmount = parseFloat(pot.amount) + amount;
-        await updatePotMutation.mutateAsync({
-          id: selectedPotId,
-          data: { amount: newAmount.toString() },
-        });
-      }
-    } else {
-      toast({ title: "Please select or create a pot", variant: "destructive" });
-      return;
-    }
-
-    const currentMonth = getCurrentMonth();
-    const updateData = currentType === "savings" 
-      ? { savings: amount.toString() }
-      : { investments: amount.toString() };
-    
-    await updateMonthlyDataMutation.mutateAsync({
-      monthYear: currentMonth,
-      data: updateData,
-    });
-
-    setAddSavingsDialogOpen(false);
-    setAddInvestmentsDialogOpen(false);
-    setSelectedPotId("");
-    setNewPotName("");
-    setAdjustAmount("");
   };
 
   const handleDeletePot = (id: string, name: string) => {

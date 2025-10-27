@@ -30,8 +30,8 @@ async function updateMonthlyData(userId: string, monthYear: string) {
       monthYear,
       income: income.toString(),
       expenses: expenses.toString(),
-      savings: existingData.savings || "0",
-      investments: existingData.investments || "0",
+      savings: existingData?.savings || "0",
+      investments: existingData?.investments || "0",
     });
   } catch (error) {
     console.error("Error updating monthly data:", error);

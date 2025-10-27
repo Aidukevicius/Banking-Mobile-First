@@ -39,9 +39,12 @@ export default function Transactions() {
     queryKey: ["/api/transactions"],
   });
 
-  const { data: categories = [] } = useQuery({
+  const { data: allCategories = [] } = useQuery({
     queryKey: ["/api/categories"],
   });
+
+  // Only show expense categories for transaction categorization
+  const categories = allCategories.filter((cat: any) => cat.type === 'expense');
 
   const { data: settings } = useQuery({
     queryKey: ["/api/settings"],

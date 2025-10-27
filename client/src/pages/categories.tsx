@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Tag, Trash2, Pencil } from "lucide-react";
 import {
   Dialog,
@@ -23,6 +24,7 @@ export default function Categories() {
   const [budgetLimit, setBudgetLimit] = useState("");
   const [selectedColor, setSelectedColor] = useState("#3B82F6");
   const [categoryType, setCategoryType] = useState<"expense" | "income">("expense");
+  const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
   const { toast } = useToast();
 
   const { data: categories = [], isLoading } = useQuery({
@@ -68,6 +70,9 @@ export default function Categories() {
       setSelectedColor(category.color);
       setBudgetLimit(category.budgetLimit || "");
       setCategoryType(category.type || "expense");
+    } else {
+      // When adding new category, use the active tab type
+      setCategoryType(activeTab);
     }
     setDialogOpen(true);
   };
@@ -111,74 +116,99 @@ export default function Categories() {
     );
   }
 
+  const expenseCategories = categories.filter((cat: any) => cat.type === 'expense');
+  const incomeCategories = categories.filter((cat: any) => cat.type === 'income');
+
+  const renderCategoryList = (categoryList: any[], type: 'expense' | 'income') => {
+    if (categoryList.length === 0) {
+      return (
+        <Card className="p-8">
+          <div className="text-center space-y-3">
+            <Tag className="w-12 h-12 mx-auto text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">No {type} categories yet</p>
+            <p className="text-sm text-muted-foreground">
+              Create your first {type} category
+            </p>
+          </div>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {categoryList.map((category: any) => (
+          <Card key={category.id} className="p-4 hover-elevate" data-testid={`card-category-${category.id}`}>
+            <div className="flex items-center gap-4">
+              <div
+                className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: category.color + "20" }}
+              >
+                <Tag className="w-6 h-6" style={{ color: category.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-lg">{category.name}</h3>
+                {category.budgetLimit && (
+                  <p className="text-sm text-muted-foreground">
+                    Budget: ${parseFloat(category.budgetLimit).toFixed(2)}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleOpenDialog(category)}
+                  data-testid={`button-edit-${category.id}`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => deleteMutation.mutate(category.id)}
+                  disabled={deleteMutation.isPending}
+                  data-testid={`button-delete-${category.id}`}
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="pb-20 px-4 pt-6 max-w-lg mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Categories</h1>
-        <Button onClick={() => handleOpenDialog()} data-testid="button-add-category">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Category
-        </Button>
       </div>
 
-      {/* Categories List */}
-      {categories.length === 0 ? (
-        <Card className="p-8">
-          <div className="text-center space-y-3">
-            <Tag className="w-12 h-12 mx-auto text-muted-foreground opacity-50" />
-            <p className="text-muted-foreground">No categories yet</p>
-            <p className="text-sm text-muted-foreground">
-              Create your first category to start organizing transactions
-            </p>
-          </div>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {categories.map((category: any) => (
-            <Card key={category.id} className="p-4 hover-elevate" data-testid={`card-category-${category.id}`}>
-              <div className="flex items-center gap-4">
-                <div
-                  className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: category.color + "20" }}
-                >
-                  <Tag className="w-6 h-6" style={{ color: category.color }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-lg">{category.name}</h3>
-                    <Badge variant={category.type === 'income' ? 'default' : 'secondary'}>
-                      {category.type === 'income' ? 'Income' : 'Expense'}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {category.budgetLimit && `Budget: $${parseFloat(category.budgetLimit).toFixed(2)}`}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleOpenDialog(category)}
-                    data-testid={`button-edit-${category.id}`}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteMutation.mutate(category.id)}
-                    disabled={deleteMutation.isPending}
-                    data-testid={`button-delete-${category.id}`}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Tabs for Expense and Income Categories */}
+      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as "expense" | "income")}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="expense">Expense Categories</TabsTrigger>
+          <TabsTrigger value="income">Income Categories</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="expense" className="space-y-4 mt-6">
+          <Button onClick={() => handleOpenDialog()} className="w-full" data-testid="button-add-expense-category">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Expense Category
+          </Button>
+          {renderCategoryList(expenseCategories, 'expense')}
+        </TabsContent>
+        
+        <TabsContent value="income" className="space-y-4 mt-6">
+          <Button onClick={() => handleOpenDialog()} className="w-full" data-testid="button-add-income-category">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Income Category
+          </Button>
+          {renderCategoryList(incomeCategories, 'income')}
+        </TabsContent>
+      </Tabs>
 
       {/* Add/Edit Category Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -190,19 +220,6 @@ export default function Categories() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="category-type">Type</Label>
-              <select
-                id="category-type"
-                value={categoryType}
-                onChange={(e) => setCategoryType(e.target.value as "expense" | "income")}
-                className="w-full h-12 px-3 rounded-md border border-input bg-background"
-                data-testid="select-category-type"
-              >
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-              </select>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="category-name">Category Name</Label>
               <Input

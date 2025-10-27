@@ -177,40 +177,16 @@ export default function Income() {
         </Button>
       </Card>
 
-      {/* Income Categories Management */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Income Categories</h3>
-          <Button
-            onClick={createDefaultCategories}
-            variant="outline"
-            size="sm"
-            disabled={createCategoryMutation.isPending}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Defaults
-          </Button>
-        </div>
-        {incomeCategories.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No income categories yet. Create default categories to get started.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {incomeCategories.map((cat: any) => (
-              <div key={cat.id} className="flex items-center justify-between p-2 rounded-lg border">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  <span className="text-sm font-medium">{cat.name}</span>
-                </div>
-              </div>
-            ))}
+      {incomeCategories.length === 0 && (
+        <Card className="p-6">
+          <div className="text-center space-y-3">
+            <p className="text-muted-foreground">No income categories yet</p>
+            <p className="text-sm text-muted-foreground">
+              Go to Categories page to create income categories
+            </p>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Income by Category */}
       {categoryBreakdown.length > 0 && (

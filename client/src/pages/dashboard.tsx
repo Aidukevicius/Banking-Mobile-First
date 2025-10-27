@@ -55,8 +55,10 @@ export default function Dashboard() {
 
   // Calculate category breakdown from transactions (expenses only)
   const expenseCategories = categories.filter((cat: any) => cat.type === 'expense');
+  const expenseTransactions = transactions.filter((t: any) => t.type === 'expense');
+  
   const categoryBreakdown = expenseCategories.map((cat: any) => {
-    const catTransactions = transactions.filter((t: any) => t.categoryId === cat.id && t.type === 'expense');
+    const catTransactions = expenseTransactions.filter((t: any) => t.categoryId === cat.id);
     const total = catTransactions.reduce((sum: number, t: any) => sum + Math.abs(parseFloat(t.amount)), 0);
     return {
       id: cat.id,

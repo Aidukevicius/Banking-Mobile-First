@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, TrendingUp, Plus, Trash2 } from "lucide-react";
+import { Wallet, TrendingUp, Plus, Trash2, Edit } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,12 +24,22 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
+const getCurrentMonth = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
 export default function Portfolio() {
   const [addSavingsDialogOpen, setAddSavingsDialogOpen] = useState(false);
   const [addInvestmentsDialogOpen, setAddInvestmentsDialogOpen] = useState(false);
+  const [editPotDialogOpen, setEditPotDialogOpen] = useState(false);
   const [newPotName, setNewPotName] = useState("");
   const [selectedPotId, setSelectedPotId] = useState<string>("");
   const [adjustAmount, setAdjustAmount] = useState("");
+  const [editingPot, setEditingPot] = useState<any>(null);
+  const [editAmount, setEditAmount] = useState("");
   const [currentType, setCurrentType] = useState<"savings" | "investments">("savings");
   const { toast } = useToast();
 
@@ -84,6 +94,14 @@ export default function Portfolio() {
     },
   });
 
+  const updateMonthlyDataMutation = useMutation({
+    mutationFn: ({ monthYear, data }: { monthYear: string; data: any }) =>
+      apiRequest("POST", `/api/monthly-data`, { monthYear, ...data }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${variables.monthYear}`] });
+    },
+  });
+
   const totalSavings = savingsPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
   const totalInvestments = investmentPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
 
@@ -99,7 +117,7 @@ export default function Portfolio() {
     }
   };
 
-  const handleAddAmount = () => {
+  const handleAddAmount = async () => {
     const amount = parseFloat(adjustAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({ title: "Please enter a valid amount", variant: "destructive" });
@@ -111,7 +129,7 @@ export default function Portfolio() {
         toast({ title: "Please enter a pot name", variant: "destructive" });
         return;
       }
-      createPotMutation.mutate({
+      await createPotMutation.mutateAsync({
         name: newPotName,
         amount: amount.toString(),
         type: currentType,
@@ -121,7 +139,7 @@ export default function Portfolio() {
       const pot = pots.find((p: any) => p.id === selectedPotId);
       if (pot) {
         const newAmount = parseFloat(pot.amount) + amount;
-        updatePotMutation.mutate({
+        await updatePotMutation.mutateAsync({
           id: selectedPotId,
           data: { amount: newAmount.toString() },
         });
@@ -130,6 +148,16 @@ export default function Portfolio() {
       toast({ title: "Please select or create a pot", variant: "destructive" });
       return;
     }
+
+    const currentMonth = getCurrentMonth();
+    const updateData = currentType === "savings" 
+      ? { savings: amount.toString() }
+      : { investments: amount.toString() };
+    
+    await updateMonthlyDataMutation.mutateAsync({
+      monthYear: currentMonth,
+      data: updateData,
+    });
 
     setAddSavingsDialogOpen(false);
     setAddInvestmentsDialogOpen(false);
@@ -141,6 +169,30 @@ export default function Portfolio() {
   const handleDeletePot = (id: string) => {
     if (confirm("Are you sure you want to delete this pot?")) {
       deletePotMutation.mutate(id);
+    }
+  };
+
+  const handleOpenEditDialog = (pot: any) => {
+    setEditingPot(pot);
+    setEditAmount(pot.amount);
+    setEditPotDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    const amount = parseFloat(editAmount);
+    if (isNaN(amount) || amount < 0) {
+      toast({ title: "Please enter a valid amount", variant: "destructive" });
+      return;
+    }
+
+    if (editingPot) {
+      await updatePotMutation.mutateAsync({
+        id: editingPot.id,
+        data: { amount: amount.toString() },
+      });
+      setEditPotDialogOpen(false);
+      setEditingPot(null);
+      setEditAmount("");
     }
   };
 
@@ -221,13 +273,24 @@ export default function Portfolio() {
                         {currencySymbol}{parseFloat(pot.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeletePot(pot.id)}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenEditDialog(pot)}
+                        data-testid={`button-edit-pot-${pot.id}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeletePot(pot.id)}
+                        data-testid={`button-delete-pot-${pot.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}
@@ -268,13 +331,24 @@ export default function Portfolio() {
                         {currencySymbol}{parseFloat(pot.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeletePot(pot.id)}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenEditDialog(pot)}
+                        data-testid={`button-edit-pot-${pot.id}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeletePot(pot.id)}
+                        data-testid={`button-delete-pot-${pot.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}
@@ -452,6 +526,54 @@ export default function Portfolio() {
               className="flex-1"
             >
               Add
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Pot Dialog */}
+      <Dialog open={editPotDialogOpen} onOpenChange={setEditPotDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit {editingPot?.name}</DialogTitle>
+            <DialogDescription>
+              Manually set the total amount for this {editingPot?.type === 'savings' ? 'savings pot' : 'investment'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-amount">Total Amount ({currencySymbol})</Label>
+              <Input
+                id="edit-amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                className="text-right tabular-nums"
+                data-testid="input-edit-amount"
+              />
+              <p className="text-xs text-muted-foreground">
+                This will set the total amount to the value you enter above
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setEditPotDialogOpen(false)}
+              className="flex-1"
+              data-testid="button-cancel-edit"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={updatePotMutation.isPending}
+              className="flex-1"
+              data-testid="button-save-edit"
+            >
+              Save
             </Button>
           </div>
         </DialogContent>

@@ -157,29 +157,29 @@ export default function Portfolio() {
 
             <div className="space-y-3">
               <p className="text-sm font-medium">Quick Adjust</p>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {quickAdjustments.map((amount) => (
-                  <div key={amount} className="flex-1 flex gap-1">
+                  <div key={amount} className="space-y-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleQuickAdjust(amount, "subtract", "savings")}
-                      className="flex-1"
-                      data-testid={`button-subtract-${amount}`}
+                      onClick={() => handleQuickAdjust(amount, "add", "savings")}
+                      className="w-full"
+                      data-testid={`button-add-${amount}`}
                       disabled={updateMonthlyDataMutation.isPending}
                     >
-                      <Minus className="w-3 h-3 mr-1" />
+                      <Plus className="w-3 h-3 mr-1" />
                       ${amount}
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleQuickAdjust(amount, "add", "savings")}
-                      className="flex-1"
-                      data-testid={`button-add-${amount}`}
+                      onClick={() => handleQuickAdjust(amount, "subtract", "savings")}
+                      className="w-full"
+                      data-testid={`button-subtract-${amount}`}
                       disabled={updateMonthlyDataMutation.isPending}
                     >
-                      <Plus className="w-3 h-3 mr-1" />
+                      <Minus className="w-3 h-3 mr-1" />
                       ${amount}
                     </Button>
                   </div>
@@ -231,27 +231,27 @@ export default function Portfolio() {
 
             <div className="space-y-3">
               <p className="text-sm font-medium">Quick Adjust</p>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {quickAdjustments.map((amount) => (
-                  <div key={amount} className="flex-1 flex gap-1">
+                  <div key={amount} className="space-y-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleQuickAdjust(amount, "subtract", "investments")}
-                      className="flex-1"
+                      onClick={() => handleQuickAdjust(amount, "add", "investments")}
+                      className="w-full"
                       disabled={updateMonthlyDataMutation.isPending}
                     >
-                      <Minus className="w-3 h-3 mr-1" />
+                      <Plus className="w-3 h-3 mr-1" />
                       ${amount}
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleQuickAdjust(amount, "add", "investments")}
-                      className="flex-1"
+                      onClick={() => handleQuickAdjust(amount, "subtract", "investments")}
+                      className="w-full"
                       disabled={updateMonthlyDataMutation.isPending}
                     >
-                      <Plus className="w-3 h-3 mr-1" />
+                      <Minus className="w-3 h-3 mr-1" />
                       ${amount}
                     </Button>
                   </div>

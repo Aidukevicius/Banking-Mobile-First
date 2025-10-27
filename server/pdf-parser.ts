@@ -7,7 +7,8 @@ export interface ParsedTransaction {
 
 export async function parsePdfStatement(buffer: Buffer): Promise<ParsedTransaction[]> {
   try {
-    const pdf = (await import("pdf-parse")).default;
+    const pdfParse = await import("pdf-parse");
+    const pdf = pdfParse.default || pdfParse;
     const data = await pdf(buffer);
     const text = data.text;
     

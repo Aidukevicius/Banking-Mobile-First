@@ -23,8 +23,16 @@ export default function Transactions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [addTransactionDialogOpen, setAddTransactionDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [newTransaction, setNewTransaction] = useState({
+    date: new Date().toISOString().split('T')[0],
+    provider: "",
+    description: "",
+    amount: "",
+    categoryId: "",
+  });
   const { toast } = useToast();
 
   const { data: transactions = [], isLoading } = useQuery({
@@ -89,6 +97,26 @@ export default function Transactions() {
     },
   });
 
+  const createTransactionMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/transactions", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
+      setAddTransactionDialogOpen(false);
+      setNewTransaction({
+        date: new Date().toISOString().split('T')[0],
+        provider: "",
+        description: "",
+        amount: "",
+        categoryId: "",
+      });
+      toast({
+        title: "Transaction added",
+        description: "Your transaction has been created successfully",
+      });
+    },
+  });
+
   const filteredTransactions = transactions.filter((t: any) =>
     t.provider.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -133,6 +161,20 @@ export default function Transactions() {
     });
   };
 
+  const handleCreateTransaction = () => {
+    if (!newTransaction.provider || !newTransaction.amount) return;
+    
+    const monthYear = newTransaction.date.substring(0, 7);
+    createTransactionMutation.mutate({
+      date: new Date(newTransaction.date),
+      provider: newTransaction.provider,
+      description: newTransaction.description || newTransaction.provider,
+      amount: newTransaction.amount,
+      categoryId: newTransaction.categoryId || null,
+      monthYear,
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="pb-20 px-4 pt-6 max-w-lg mx-auto space-y-6">
@@ -153,13 +195,23 @@ export default function Transactions() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Transactions</h1>
-        <Button
-          onClick={() => setUploadDialogOpen(true)}
-          data-testid="button-upload-pdf"
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          Upload PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setAddTransactionDialogOpen(true)}
+            variant="outline"
+            data-testid="button-add-transaction"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Add
+          </Button>
+          <Button
+            onClick={() => setUploadDialogOpen(true)}
+            data-testid="button-upload-pdf"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            PDF
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -327,6 +379,90 @@ export default function Transactions() {
               data-testid="button-confirm-upload"
             >
               {uploadMutation.isPending ? "Processing..." : "Upload & Process"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Transaction Dialog */}
+      <Dialog open={addTransactionDialogOpen} onOpenChange={setAddTransactionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Transaction</DialogTitle>
+            <DialogDescription>
+              Manually add a new transaction to your records.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={newTransaction.date}
+                onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="provider">Provider/Merchant</Label>
+              <Input
+                id="provider"
+                placeholder="e.g., Amazon, Whole Foods"
+                value={newTransaction.provider}
+                onChange={(e) => setNewTransaction({ ...newTransaction, provider: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Input
+                id="description"
+                placeholder="Transaction details"
+                value={newTransaction.description}
+                onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={newTransaction.amount}
+                onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
+                className="text-right tabular-nums"
+              />
+              <p className="text-xs text-muted-foreground">Use negative for expenses, positive for income</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Category (Optional)</Label>
+              <select
+                id="category"
+                value={newTransaction.categoryId}
+                onChange={(e) => setNewTransaction({ ...newTransaction, categoryId: e.target.value })}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+              >
+                <option value="">None</option>
+                {categories.map((cat: any) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setAddTransactionDialogOpen(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateTransaction}
+              disabled={!newTransaction.provider || !newTransaction.amount || createTransactionMutation.isPending}
+              className="flex-1"
+            >
+              Add Transaction
             </Button>
           </div>
         </DialogContent>

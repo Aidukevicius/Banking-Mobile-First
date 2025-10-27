@@ -24,9 +24,9 @@ export function BottomNav() {
               href={path}
               data-testid={`link-nav-${label.toLowerCase()}`}
             >
-              <a
+              <div
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg min-w-[64px] transition-colors hover-elevate active-elevate-2",
+                  "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg min-w-[64px] transition-colors hover-elevate active-elevate-2 cursor-pointer",
                   isActive && "bg-primary/10"
                 )}
               >
@@ -44,7 +44,7 @@ export function BottomNav() {
                 >
                   {label}
                 </span>
-              </a>
+              </div>
             </Link>
           );
         })}

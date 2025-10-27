@@ -11,10 +11,17 @@ A comprehensive full-stack personal finance management application built with Re
 - **Bulk Operations**: Edit and delete multiple transactions efficiently
 
 ### 📊 Budget & Category Management
-- **Custom Categories**: Create unlimited expense categories with custom icons and colors
+- **Custom Categories**: Create unlimited income and expense categories with custom icons and colors
 - **Budget Limits**: Set monthly budget limits for each category
 - **Visual Tracking**: See spending vs. budget with progress indicators
 - **Category Learning**: System learns and remembers provider-to-category mappings
+
+### 💵 Income Tracking
+- **Dedicated Income Tab**: Separate page for managing all income sources
+- **Income Categories**: Built-in categories for Salary, Freelance, Investment Returns, and Other Income
+- **Monthly Totals**: Automatic calculation of total monthly income from all sources
+- **Income Breakdown**: Visual breakdown showing income by category
+- **Recent Transactions**: Quick view of recent income entries
 
 ### 📈 Portfolio Tracking
 - **Savings Tracker**: Monitor your savings account balance month by month

@@ -23,6 +23,7 @@ export const userSettings = pgTable("user_settings", {
 export const categories = pgTable("categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 10 }).notNull().default("expense"), // "income" or "expense"
   name: text("name").notNull(),
   icon: text("icon").notNull().default("tag"),
   color: varchar("color", { length: 7 }).notNull().default("#3B82F6"),
@@ -34,6 +35,7 @@ export const categories = pgTable("categories", {
 export const transactions = pgTable("transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 10 }).notNull().default("expense"), // "income" or "expense"
   date: timestamp("date").notNull(),
   description: text("description").notNull(),
   provider: text("provider").notNull(),

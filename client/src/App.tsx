@@ -12,6 +12,7 @@ import Dashboard from "@/pages/dashboard";
 import Transactions from "@/pages/transactions";
 import Categories from "@/pages/categories";
 import Portfolio from "@/pages/portfolio";
+import Income from "@/pages/income";
 import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth";
 
@@ -39,6 +40,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/transactions" component={Transactions} />
         <Route path="/categories" component={Categories} />
+        <Route path="/income" component={Income} />
         <Route path="/portfolio" component={Portfolio} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />

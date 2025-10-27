@@ -8,20 +8,28 @@ import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-async function updateMonthlyExpenses(userId: string, monthYear: string) {
+async function updateMonthlyData(userId: string, monthYear: string) {
   try {
     const transactions = await storage.getTransactions(userId, monthYear);
+    
+    // Calculate income from income transactions
+    const income = transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
+    
+    // Calculate expenses from expense transactions
     const expenses = transactions
-      .filter(t => parseFloat(t.amount) < 0)
+      .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
     
     await storage.createOrUpdateMonthlyData({
       userId,
       monthYear,
+      income: income.toString(),
       expenses: expenses.toString(),
     });
   } catch (error) {
-    console.error("Error updating monthly expenses:", error);
+    console.error("Error updating monthly data:", error);
   }
 }
 
@@ -169,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Update monthly expenses automatically
-      await updateMonthlyExpenses(req.userId!, transaction.monthYear);
+      await updateMonthlyData(req.userId!, transaction.monthYear);
       
       res.json(transaction);
     } catch (error: any) {
@@ -203,9 +211,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update monthly expenses for both old and new months if monthYear changed
       if (originalMonthYear && originalMonthYear !== transaction.monthYear) {
-        await updateMonthlyExpenses(req.userId!, originalMonthYear);
+        await updateMonthlyData(req.userId!, originalMonthYear);
       }
-      await updateMonthlyExpenses(req.userId!, transaction.monthYear);
+      await updateMonthlyData(req.userId!, transaction.monthYear);
       
       res.json(transaction);
     } catch (error: any) {
@@ -227,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update monthly expenses if transaction was found
       if (transaction) {
-        await updateMonthlyExpenses(req.userId!, transaction.monthYear);
+        await updateMonthlyData(req.userId!, transaction.monthYear);
       }
       
       res.json({ success: true });
@@ -274,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update monthly expenses for all affected months
       for (const monthYear of monthsToUpdate) {
-        await updateMonthlyExpenses(req.userId!, monthYear);
+        await updateMonthlyData(req.userId!, monthYear);
       }
       
       res.json({

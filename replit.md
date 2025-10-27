@@ -55,13 +55,20 @@ A mobile-first finance tracker application with intelligent PDF bank statement p
 - Built all frontend components with exceptional design quality
 - Implemented theme system with dark mode support
 - Created mobile-first bottom navigation
-- Built auth, dashboard, transactions, categories, portfolio, and settings pages
+- Built auth, dashboard, transactions, categories, portfolio, income, and settings pages
 - Added month selector for historical data viewing
+- **Fixed PDF upload** using dynamic import() for pdf-parse
+- **Fixed transaction filtering** by updating queryClient to handle query parameters
+- **Fixed dashboard** to properly fetch monthly data with correct API endpoints
+- **Added Income Tracking** with dedicated page and sub-categories (Salary, Freelance, Investment Returns, Other Income)
+- **Enhanced schema** with `type` field for transactions and categories (income vs expense)
+- **Updated backend** to calculate both income and expenses automatically from transactions
 
 ## Development Status
 ✅ Phase 1: Schema & Frontend - COMPLETED
 ✅ Phase 2: Backend Implementation - COMPLETED
 ✅ Phase 3: Integration & Testing - COMPLETED
+✅ Phase 4: Bug Fixes & Income Feature - COMPLETED
 
 ## Implementation Highlights
 - **Authentication**: Full JWT-based auth with bcrypt password hashing, persistent sessions

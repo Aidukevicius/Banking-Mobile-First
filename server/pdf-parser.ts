@@ -1,12 +1,3 @@
-import { createRequire } from 'module';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse').default || require('pdf-parse');
-
 export interface ParsedTransaction {
   date: string;
   description: string;
@@ -14,10 +5,21 @@ export interface ParsedTransaction {
   amount: number;
 }
 
+let pdfParse: any = null;
+
+async function getPdfParse() {
+  if (!pdfParse) {
+    const pdfParseModule = await import('pdf-parse');
+    pdfParse = pdfParseModule.default || pdfParseModule;
+  }
+  return pdfParse;
+}
+
 export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransaction[]> {
   try {
     console.log('Starting PDF parse, buffer size:', pdfBuffer.length);
-    const data = await pdfParse(pdfBuffer);
+    const pdfParseFunc = await getPdfParse();
+    const data = await pdfParseFunc(pdfBuffer);
     const text = data.text;
     console.log('PDF text extracted, length:', text.length);
 

@@ -40,7 +40,7 @@ export default function Dashboard() {
   const currencySymbol = getCurrencySymbol(settings?.currency || "USD");
 
   const { data: monthlyData, isLoading: monthlyLoading } = useQuery({
-    queryKey: ["/api/monthly-data", selectedMonth],
+    queryKey: [`/api/monthly-data/${selectedMonth}`],
   });
 
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({

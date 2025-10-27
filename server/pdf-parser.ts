@@ -11,7 +11,15 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
     
     // Dynamic import pdf-parse - handle both ESM and CommonJS
     const pdfParseModule = await import('pdf-parse');
-    const pdfParse = pdfParseModule.default || pdfParseModule;
+    // The module might be { default: function } or just the function
+    const pdfParse = typeof pdfParseModule.default === 'function' 
+      ? pdfParseModule.default 
+      : (typeof pdfParseModule === 'function' ? pdfParseModule : (pdfParseModule as any).default);
+    
+    if (typeof pdfParse !== 'function') {
+      console.error('PDF parse module structure:', Object.keys(pdfParseModule));
+      throw new Error('Could not find pdf-parse function in module');
+    }
     
     console.log('PDF parse function loaded, type:', typeof pdfParse);
     const data = await pdfParse(pdfBuffer);

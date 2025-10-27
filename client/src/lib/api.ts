@@ -1,9 +1,15 @@
+
+// Helper function to get the auth token
+export function getAuthToken(): string | null {
+  return localStorage.getItem("token");
+}
+
 // Helper function to make authenticated API requests
 export async function apiRequest(
   url: string,
   options: RequestInit = {}
 ): Promise<any> {
-  const token = localStorage.getItem("token");
+  const token = getAuthToken();
 
   if (!token) {
     window.location.href = "/auth";

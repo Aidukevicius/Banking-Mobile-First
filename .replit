@@ -42,5 +42,18 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "Run Tests"
+author = 49054972
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "chmod +x test-api.js"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node test-api.js"
+
 [agent]
 integrations = ["javascript_database:1.0.0"]

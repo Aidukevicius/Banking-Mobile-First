@@ -1,6 +1,23 @@
-# Personal Finance Tracker
+# Finance Tracker
 
 A comprehensive full-stack personal finance management application built with React, Express, and PostgreSQL. Track your expenses, manage budgets, monitor investments, and gain insights into your spending habits.
+
+## Environment Setup
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Fill in your actual credentials in `.env`:
+   - **SMTP_USER**: Your Brevo/Sendinblue email
+   - **SMTP_PASS**: Your Brevo SMTP API key
+   - **FROM_EMAIL**: Email address for outgoing emails
+   - **FROM_NAME**: Display name for emails
+   - **DATABASE_URL**: PostgreSQL connection string
+   - **JWT_SECRET**: Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+
+3. Never commit the `.env` file to version control!
 
 ## Features
 

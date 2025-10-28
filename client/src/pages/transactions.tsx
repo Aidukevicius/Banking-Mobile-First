@@ -291,7 +291,7 @@ export default function Transactions() {
                         </div>
                         <div className="flex items-center gap-3">
                           {transaction.categoryId ? (
-                            <CategoryBadge categoryId={transaction.categoryId} categories={categories} />
+                            <CategoryBadge categoryId={transaction.categoryId} categories={allCategories} />
                           ) : (
                             <Badge variant="outline" className="text-muted-foreground">
                               Uncategorized

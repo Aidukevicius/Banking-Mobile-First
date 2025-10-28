@@ -22,12 +22,11 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
     
     console.log('PDFParse class loaded, creating instance and parsing');
     
-    // Create instance and parse
-    const parser = new PDFParse(pdfBuffer, {
-      verbosity: 0
-    });
+    // Create instance with proper options
+    const parser = new PDFParse(pdfBuffer, { verbosity: 0 });
     
-    const data = await parser.parse();
+    // PDFParse returns a promise directly when instantiated
+    const data = await parser;
     const text = data.text;
     console.log('PDF text extracted, length:', text.length);
 

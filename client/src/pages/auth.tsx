@@ -239,6 +239,9 @@ export default function AuthPage({ onLogin, onRegister, isLoading }: AuthPagePro
                       className="h-12"
                       data-testid="input-register-password"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Must be at least 8 characters with uppercase, lowercase, and numbers
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirm-password">Confirm Password</Label>

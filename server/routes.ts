@@ -271,8 +271,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const monthYear = parsed.date.substring(0, 7); // YYYY-MM
         const categoryId = mappingMap.get(parsed.provider.toLowerCase()) || null;
         
+        // Determine transaction type based on amount
+        // Positive amounts = income, Negative amounts = expense
+        const type = parsed.amount > 0 ? 'income' : 'expense';
+        
         const transaction = await storage.createTransaction({
           userId: req.userId!,
+          type,
           date: new Date(parsed.date),
           description: parsed.description,
           provider: parsed.provider,
@@ -286,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update monthly expenses for all affected months
-      for (const monthYear of monthsToUpdate) {
+      for (const monthYear of Array.from(monthsToUpdate)) {
         await updateMonthlyData(req.userId!, monthYear);
       }
       

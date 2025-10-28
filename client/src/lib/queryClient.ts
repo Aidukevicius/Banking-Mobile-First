@@ -99,9 +99,9 @@ export const queryClient = new QueryClient({
 
         return res.json();
       },
-      staleTime: 0, // Always fetch fresh data for user-specific content
+      staleTime: 1000 * 60 * 5, // 5 minutes - data doesn't need to be fresh all the time
       retry: false,
-      refetchOnWindowFocus: true, // Refetch when window regains focus
+      refetchOnWindowFocus: false, // Disable to prevent constant reconnections
     },
     mutations: {
       retry: false,

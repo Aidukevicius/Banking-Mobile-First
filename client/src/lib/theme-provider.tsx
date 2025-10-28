@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
-import { apiRequest } from "./api"
-import { queryClient } from "./queryClient"
+import { apiRequest, queryClient } from "./queryClient"
 
 type Theme = "dark" | "light" | "system"
 
@@ -33,9 +32,11 @@ export function ThemeProvider({
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   )
 
-  // Fetch user settings to get saved theme
-  const { data: settings } = useQuery({
+  // Only fetch user settings if we have a token (user is authenticated)
+  const hasToken = !!localStorage.getItem("token")
+  const { data: settings } = useQuery<{ theme: string; currency: string }>({
     queryKey: ["/api/settings"],
+    enabled: hasToken,
   })
 
   // Update theme mutation
@@ -54,7 +55,7 @@ export function ThemeProvider({
       setThemeState(settings.theme as Theme)
       localStorage.setItem(storageKey, settings.theme)
     }
-  }, [settings?.theme, storageKey])
+  }, [settings, storageKey])
 
   useEffect(() => {
     const root = window.document.documentElement

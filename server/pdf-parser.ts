@@ -1,3 +1,5 @@
+import { PDFParse } from 'pdf-parse';
+
 export interface ParsedTransaction {
   date: string;
   description: string;
@@ -6,22 +8,17 @@ export interface ParsedTransaction {
 }
 
 export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransaction[]> {
+  let parser: PDFParse | null = null;
+  
   try {
     console.log('Starting PDF parse, buffer size:', pdfBuffer.length);
     
-    // Dynamic import pdf-parse - it's a function, not a class
-    const pdfParse = (await import('pdf-parse')).default;
+    // Create PDFParse instance with the buffer
+    parser = new PDFParse({ data: pdfBuffer });
     
-    if (typeof pdfParse !== 'function') {
-      console.error('PDF parse is not a function, type:', typeof pdfParse);
-      throw new Error('pdf-parse module did not export a function');
-    }
-    
-    console.log('pdf-parse function loaded, parsing buffer');
-    
-    // Call pdf-parse as a function with the buffer
-    const data = await pdfParse(pdfBuffer);
-    const text = data.text;
+    // Extract text from PDF
+    const result = await parser.getText();
+    const text = result.text;
     console.log('PDF text extracted, length:', text.length);
 
     const transactions: ParsedTransaction[] = [];
@@ -64,10 +61,16 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
     }
 
     console.log('Parsed transactions:', transactions.length);
+    
     return transactions;
   } catch (error: any) {
     console.error('PDF parsing error:', error);
     throw new Error('Failed to parse PDF: ' + (error.message || error));
+  } finally {
+    // Ensure parser resources are always cleaned up
+    if (parser) {
+      await parser.destroy();
+    }
   }
 }
 

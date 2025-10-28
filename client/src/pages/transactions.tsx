@@ -24,8 +24,11 @@ export default function Transactions() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [addTransactionDialogOpen, setAddTransactionDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [editedTransaction, setEditedTransaction] = useState<any>(null);
   const [newTransaction, setNewTransaction] = useState({
     date: new Date().toISOString().split('T')[0],
     provider: "",
@@ -115,6 +118,20 @@ export default function Transactions() {
     },
   });
 
+  const updateTransactionDetailsMutation = useMutation({
+    mutationFn: ({ id, amount, categoryId }: { id: string; amount: string; categoryId?: string }) =>
+      apiRequest("PUT", `/api/transactions/${id}`, { amount, categoryId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
+      setEditDialogOpen(false);
+      toast({
+        title: "Transaction updated",
+        description: "Your changes have been saved successfully",
+      });
+    },
+  });
+
   const createTransactionMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/transactions", data),
     onSuccess: () => {
@@ -189,6 +206,21 @@ export default function Transactions() {
       id: selectedTransaction.id,
       categoryId,
     });
+  };
+
+  const handleEditTransaction = () => {
+    if (!editedTransaction) return;
+    updateTransactionDetailsMutation.mutate({
+      id: editedTransaction.id,
+      amount: editedTransaction.amount,
+      categoryId: editedTransaction.categoryId,
+    });
+  };
+
+  const handleDeleteTransaction = () => {
+    if (!selectedTransaction) return;
+    deleteTransactionMutation.mutate(selectedTransaction.id);
+    setDeleteDialogOpen(false);
   };
 
   const handleCreateTransaction = () => {
@@ -315,8 +347,13 @@ export default function Transactions() {
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => {
-                                setSelectedTransaction(transaction);
-                                setCategoryDialogOpen(true);
+                                setEditedTransaction({
+                                  id: transaction.id,
+                                  amount: Math.abs(parseFloat(transaction.amount)).toString(),
+                                  categoryId: transaction.categoryId || "",
+                                  type: transaction.type,
+                                });
+                                setEditDialogOpen(true);
                               }}
                             >
                               <Edit2 className="w-4 h-4" />
@@ -326,9 +363,8 @@ export default function Transactions() {
                               size="icon"
                               className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                               onClick={() => {
-                                if (confirm("Are you sure you want to delete this transaction?")) {
-                                  deleteTransactionMutation.mutate(transaction.id);
-                                }
+                                setSelectedTransaction(transaction);
+                                setDeleteDialogOpen(true);
                               }}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -552,6 +588,110 @@ export default function Transactions() {
                 </Button>
               ));
             })()}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Transaction Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+            <DialogDescription>
+              Update the amount and category for this transaction.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-amount">Amount ({currencySymbol})</Label>
+              <Input
+                id="edit-amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={editedTransaction?.amount || ""}
+                onChange={(e) => setEditedTransaction({ ...editedTransaction, amount: e.target.value })}
+                className="text-right tabular-nums"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-category">Category</Label>
+              <select
+                id="edit-category"
+                value={editedTransaction?.categoryId || ""}
+                onChange={(e) => setEditedTransaction({ ...editedTransaction, categoryId: e.target.value })}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+              >
+                <option value="">None</option>
+                <optgroup label={editedTransaction?.type === 'income' ? "Income Categories" : "Expense Categories"}>
+                  {allCategories
+                    .filter((cat: any) => cat.type === editedTransaction?.type)
+                    .map((cat: any) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditTransaction}
+              disabled={!editedTransaction?.amount || updateTransactionDetailsMutation.isPending}
+              className="flex-1"
+            >
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Transaction</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this transaction? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTransaction && (
+            <div className="p-4 bg-muted rounded-lg space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Provider:</span>
+                <span className="text-sm">{selectedTransaction.provider}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Amount:</span>
+                <span className={`text-sm font-semibold ${selectedTransaction.type === 'expense' ? 'text-red-600' : 'text-green-600'}`}>
+                  {selectedTransaction.type === 'expense' ? '-' : '+'}
+                  {currencySymbol}{Math.abs(parseFloat(selectedTransaction.amount)).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTransaction}
+              disabled={deleteTransactionMutation.isPending}
+              className="flex-1"
+            >
+              Delete
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

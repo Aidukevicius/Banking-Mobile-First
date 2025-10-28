@@ -434,8 +434,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentMonth = new Date().toISOString().substring(0, 7);
       const monthlyData = await storage.getMonthlyData(req.userId!, currentMonth);
       res.json({
-        savings: monthlyData.savings || "0",
-        investments: monthlyData.investments || "0",
+        savings: monthlyData?.savings || "0",
+        investments: monthlyData?.investments || "0",
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

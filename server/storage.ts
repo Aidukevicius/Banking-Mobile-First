@@ -178,14 +178,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTransaction(transaction: InsertTransaction & { userId: string }): Promise<Transaction> {
-    const [created] = await db.insert(transactions).values(transaction).returning();
+    const transactionData = {
+      ...transaction,
+      date: typeof transaction.date === 'string' ? new Date(transaction.date) : transaction.date,
+      amount: String(transaction.amount),
+    };
+    const [created] = await db.insert(transactions).values(transactionData).returning();
     return created;
   }
 
   async updateTransaction(id: string, userId: string, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined> {
+    const transactionData: any = { ...transaction };
+    if (transaction.date) {
+      transactionData.date = typeof transaction.date === 'string' ? new Date(transaction.date) : transaction.date;
+    }
+    if (transaction.amount !== undefined) {
+      transactionData.amount = String(transaction.amount);
+    }
     const [updated] = await db
       .update(transactions)
-      .set(transaction)
+      .set(transactionData)
       .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
       .returning();
     return updated || undefined;
@@ -246,10 +258,10 @@ export class DatabaseStorage implements IStorage {
     if (existing) {
       // Merge existing data with new data, preserving fields not in the update
       const updateData = {
-        income: data.income !== undefined ? data.income : existing.income,
-        expenses: data.expenses !== undefined ? data.expenses : existing.expenses,
-        savings: data.savings !== undefined ? data.savings : existing.savings,
-        investments: data.investments !== undefined ? data.investments : existing.investments,
+        income: data.income !== undefined ? String(data.income) : existing.income,
+        expenses: data.expenses !== undefined ? String(data.expenses) : existing.expenses,
+        savings: data.savings !== undefined ? String(data.savings) : existing.savings,
+        investments: data.investments !== undefined ? String(data.investments) : existing.investments,
         updatedAt: new Date(),
       };
 
@@ -264,10 +276,10 @@ export class DatabaseStorage implements IStorage {
       const insertData = {
         userId: data.userId!,
         monthYear: data.monthYear!,
-        income: data.income || "0",
-        expenses: data.expenses || "0",
-        savings: data.savings || "0",
-        investments: data.investments || "0",
+        income: data.income !== undefined ? String(data.income) : "0",
+        expenses: data.expenses !== undefined ? String(data.expenses) : "0",
+        savings: data.savings !== undefined ? String(data.savings) : "0",
+        investments: data.investments !== undefined ? String(data.investments) : "0",
       };
       const [created] = await db.insert(monthlyData).values(insertData).returning();
       return created;

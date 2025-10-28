@@ -3,12 +3,23 @@ import { Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CategoryBadgeProps {
-  name: string;
+  categoryId?: string;
+  categories?: any[];
+  name?: string;
   color?: string;
   className?: string;
 }
 
-export function CategoryBadge({ name, color = "#3B82F6", className }: CategoryBadgeProps) {
+export function CategoryBadge({ categoryId, categories, name, color = "#3B82F6", className }: CategoryBadgeProps) {
+  // If categoryId and categories are provided, find the category
+  if (categoryId && categories) {
+    const category = categories.find((c: any) => c.id === categoryId);
+    if (category) {
+      name = category.name;
+      color = category.color;
+    }
+  }
+
   return (
     <Badge 
       variant="secondary" 

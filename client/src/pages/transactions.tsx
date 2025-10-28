@@ -43,9 +43,6 @@ export default function Transactions() {
     queryKey: ["/api/categories"],
   });
 
-  // Only show expense categories for transaction categorization
-  const categories = allCategories.filter((cat: any) => cat.type === 'expense');
-
   const { data: settings } = useQuery({
     queryKey: ["/api/settings"],
   });
@@ -271,7 +268,7 @@ export default function Transactions() {
               </div>
               <div className="space-y-3">
                 {dateTransactions.map((transaction: any) => {
-                  const category = categories.find((c: any) => c.id === transaction.categoryId);
+                  const category = allCategories.find((c: any) => c.id === transaction.categoryId);
                   return (
                     <Card
                       key={transaction.id}
@@ -448,9 +445,16 @@ export default function Transactions() {
                 className="w-full h-10 px-3 rounded-md border border-input bg-background"
               >
                 <option value="">None</option>
-                {categories.filter((cat: any) => cat.type === 'expense').map((cat: any) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
+                <optgroup label="Expense Categories">
+                  {allCategories.filter((cat: any) => cat.type === 'expense').map((cat: any) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Income Categories">
+                  {allCategories.filter((cat: any) => cat.type === 'income').map((cat: any) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </optgroup>
               </select>
             </div>
           </div>
@@ -479,16 +483,26 @@ export default function Transactions() {
           <DialogHeader>
             <DialogTitle>Assign Category</DialogTitle>
             <DialogDescription>
-              Choose a category for this transaction. Your choice will be saved for future transactions from this provider.
+              {selectedTransaction?.type === 'income' 
+                ? 'Choose an income category for this transaction.'
+                : 'Choose an expense category for this transaction.'
+              } Your choice will be saved for future transactions from this provider.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 py-4">
-            {categories.filter((cat: any) => cat.type === 'expense').length === 0 ? (
-              <p className="col-span-2 text-center text-muted-foreground py-4">
-                No expense categories yet. Create one in the Categories tab first.
-              </p>
-            ) : (
-              categories.filter((cat: any) => cat.type === 'expense').map((cat: any) => (
+            {(() => {
+              const transactionType = selectedTransaction?.type || 'expense';
+              const filteredCategories = allCategories.filter((cat: any) => cat.type === transactionType);
+              
+              if (filteredCategories.length === 0) {
+                return (
+                  <p className="col-span-2 text-center text-muted-foreground py-4">
+                    No {transactionType} categories yet. Create one in the Categories tab first.
+                  </p>
+                );
+              }
+              
+              return filteredCategories.map((cat: any) => (
                 <Button
                   key={cat.id}
                   variant="outline"
@@ -499,8 +513,8 @@ export default function Transactions() {
                 >
                   {cat.name}
                 </Button>
-              ))
-            )}
+              ));
+            })()}
           </div>
         </DialogContent>
       </Dialog>

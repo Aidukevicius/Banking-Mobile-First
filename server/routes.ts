@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authMiddleware, AuthRequest, hashPassword, comparePassword, generateToken, generateResetToken, hashResetToken, getResetTokenExpiry } from "./auth";
 import { sendPasswordResetEmail } from "./resend-client";
+import { rateLimitPasswordReset } from "./rate-limiter";
 import { insertUserSchema, insertCategorySchema, insertTransactionSchema, insertMonthlyDataSchema, insertCategoryMappingSchema, insertUserSettingsSchema } from "@shared/schema";
 import { parsePdfStatement } from "./pdf-parser";
 import multer from "multer";
@@ -100,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/forgot-password", async (req, res) => {
+  app.post("/api/auth/forgot-password", rateLimitPasswordReset, async (req, res) => {
     try {
       const { email } = req.body;
       
@@ -146,8 +147,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Token and new password are required" });
       }
 
-      if (newPassword.length < 6) {
-        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+
+      if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+        return res.status(400).json({ error: "Password must contain uppercase, lowercase, and numbers" });
       }
 
       const hashedToken = hashResetToken(token);

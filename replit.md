@@ -32,9 +32,10 @@ A mobile-first finance tracker application with intelligent PDF bank statement p
 - bcrypt for password hashing
 - JWT for authentication
 - Multer for file uploads
+- Resend for transactional emails
 
 ## Database Schema
-- **users**: User accounts with authentication
+- **users**: User accounts with authentication (includes resetToken and resetTokenExpiry for password resets)
 - **user_settings**: Currency and theme preferences
 - **categories**: Custom spending categories
 - **transactions**: All financial transactions
@@ -69,6 +70,13 @@ A mobile-first finance tracker application with intelligent PDF bank statement p
   - Monthly tracking for savings and investments (updates dashboard automatically)
   - Manual edit capability for pot amounts (for interest/percentage gains)
   - Replaced browser confirm() with professional shadcn AlertDialog for deletions
+- **Password Reset with Email (Oct 28, 2025)**:
+  - Integrated Resend for transactional email sending
+  - Implemented secure password reset flow with SHA-256 hashed tokens
+  - Added dedicated /reset-password page for token-based password resets
+  - Tokens expire after 1 hour and are single-use
+  - Email includes professional HTML template with reset link
+  - Frontend updated with clean forgot password flow
 
 ## Development Status
 ✅ Phase 1: Schema & Frontend - COMPLETED

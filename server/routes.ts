@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { authMiddleware, AuthRequest, hashPassword, comparePassword, generateToken } from "./auth";
+import { authMiddleware, AuthRequest, hashPassword, comparePassword, generateToken, generateResetToken, getResetTokenExpiry } from "./auth";
 import { insertUserSchema, insertCategorySchema, insertTransactionSchema, insertMonthlyDataSchema, insertCategoryMappingSchema, insertUserSettingsSchema } from "@shared/schema";
 import { parsePdfStatement } from "./pdf-parser";
 import multer from "multer";
@@ -42,15 +42,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, password } = insertUserSchema.parse(req.body);
+      const { username, email, password } = insertUserSchema.parse(req.body);
       
-      const existing = await storage.getUserByUsername(username);
-      if (existing) {
+      const existingUsername = await storage.getUserByUsername(username);
+      if (existingUsername) {
         return res.status(400).json({ error: "Username already exists" });
+      }
+
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ error: "Email already exists" });
       }
       
       const hashedPassword = hashPassword(password);
-      const user = await storage.createUser({ username, password: hashedPassword });
+      const user = await storage.createUser({ username, email, password: hashedPassword });
       
       // Create default user settings
       await storage.createUserSettings({
@@ -89,6 +94,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
       res.json({ id: user.id, username: user.username });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      
+      // Don't reveal if user exists for security
+      if (!user) {
+        return res.json({ message: "If that email exists, a reset link has been sent" });
+      }
+
+      const resetToken = generateResetToken();
+      const expiry = getResetTokenExpiry();
+      
+      await storage.setResetToken(user.id, resetToken, expiry);
+
+      // In production, you would send an email here
+      // For now, we'll just return the token (DEV ONLY - REMOVE IN PRODUCTION)
+      console.log(`Password reset token for ${email}: ${resetToken}`);
+      
+      res.json({ 
+        message: "If that email exists, a reset link has been sent",
+        // DEV ONLY - remove in production
+        resetToken: process.env.NODE_ENV === "development" ? resetToken : undefined
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      
+      if (!token || !newPassword) {
+        return res.status(400).json({ error: "Token and new password are required" });
+      }
+
+      const user = await storage.getUserByResetToken(token);
+      
+      if (!user || !user.resetTokenExpiry) {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+      }
+
+      // Check if token is expired
+      if (new Date() > user.resetTokenExpiry) {
+        return res.status(400).json({ error: "Reset token has expired" });
+      }
+
+      const hashedPassword = hashPassword(newPassword);
+      await storage.updateUserPassword(user.id, hashedPassword);
+
+      res.json({ message: "Password has been reset successfully" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

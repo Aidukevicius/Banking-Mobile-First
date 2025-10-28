@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 const JWT_SECRET = process.env.SESSION_SECRET || "your-secret-key-change-in-production";
 
@@ -26,6 +27,17 @@ export function verifyToken(token: string): { userId: string } | null {
   } catch (error) {
     return null;
   }
+}
+
+export function generateResetToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+export function getResetTokenExpiry(): Date {
+  // Token expires in 1 hour
+  const expiry = new Date();
+  expiry.setHours(expiry.getHours() + 1);
+  return expiry;
 }
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {

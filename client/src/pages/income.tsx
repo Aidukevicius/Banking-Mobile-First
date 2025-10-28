@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Plus, Briefcase, Wallet as WalletIcon } from "lucide-react";
+import { DollarSign, Plus, Briefcase, Wallet as WalletIcon, Edit2, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,8 @@ const getCurrentMonth = () => {
 export default function Income() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [addIncomeDialogOpen, setAddIncomeDialogOpen] = useState(false);
+  const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [newIncome, setNewIncome] = useState({
     date: new Date().toISOString().split('T')[0],
     description: "",
@@ -100,6 +102,32 @@ export default function Income() {
     },
   });
 
+  const updateTransactionMutation = useMutation({
+    mutationFn: ({ id, categoryId }: { id: string; categoryId: string }) =>
+      apiRequest("PUT", `/api/transactions/${id}`, { categoryId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${selectedMonth}`] });
+      setEditCategoryDialogOpen(false);
+      toast({
+        title: "Category updated",
+        description: "Income category has been updated successfully",
+      });
+    },
+  });
+
+  const deleteTransactionMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/transactions/${id}`, undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/monthly-data/${selectedMonth}`] });
+      toast({
+        title: "Income deleted",
+        description: "Income has been removed successfully",
+      });
+    },
+  });
+
   const handleAddIncome = () => {
     if (!newIncome.amount || !newIncome.description || !newIncome.categoryId) {
       toast({ title: "Please fill all fields", variant: "destructive" });
@@ -114,6 +142,14 @@ export default function Income() {
       amount: parseFloat(newIncome.amount).toString(),
       categoryId: newIncome.categoryId,
       monthYear: selectedMonth,
+    });
+  };
+
+  const handleUpdateCategory = (categoryId: string) => {
+    if (!selectedTransaction) return;
+    updateTransactionMutation.mutate({
+      id: selectedTransaction.id,
+      categoryId,
     });
   };
 
@@ -217,12 +253,12 @@ export default function Income() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Recent Income</h3>
           <div className="space-y-3">
-            {incomeTransactions.slice(0, 5).map((transaction: any) => {
+            {incomeTransactions.slice(0, 10).map((transaction: any) => {
               const category = allCategories.find((c: any) => c.id === transaction.categoryId);
               return (
-                <div key={transaction.id} className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{transaction.description}</p>
+                <div key={transaction.id} className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{transaction.description}</p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(transaction.date).toLocaleDateString()} • {category?.name || 'Uncategorized'}
                     </p>
@@ -230,6 +266,31 @@ export default function Income() {
                   <p className="text-sm font-semibold tabular-nums text-green-600 dark:text-green-400">
                     {currencySymbol}{Math.abs(parseFloat(transaction.amount)).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setSelectedTransaction(transaction);
+                        setEditCategoryDialogOpen(true);
+                      }}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete this income?")) {
+                          deleteTransactionMutation.mutate(transaction.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -316,6 +377,51 @@ export default function Income() {
             >
               Add Income
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={editCategoryDialogOpen} onOpenChange={setEditCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Income Category</DialogTitle>
+            <DialogDescription>
+              Choose a category for this income transaction.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTransaction?.categoryId && (
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground mb-1">Current category:</p>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: allCategories.find((c: any) => c.id === selectedTransaction.categoryId)?.color }}
+                />
+                <span className="text-sm font-medium">
+                  {allCategories.find((c: any) => c.id === selectedTransaction.categoryId)?.name}
+                </span>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2 py-4">
+            {incomeCategories.length === 0 ? (
+              <p className="col-span-2 text-center text-muted-foreground py-4">
+                No income categories yet. Create one in the Categories tab first.
+              </p>
+            ) : (
+              incomeCategories.map((cat: any) => (
+                <Button
+                  key={cat.id}
+                  variant={selectedTransaction?.categoryId === cat.id ? "default" : "outline"}
+                  className="h-12"
+                  onClick={() => handleUpdateCategory(cat.id)}
+                  disabled={updateTransactionMutation.isPending}
+                >
+                  {cat.name}
+                </Button>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>

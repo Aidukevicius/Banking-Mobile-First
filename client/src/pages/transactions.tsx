@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Search, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, Search, FileText, CheckCircle, AlertCircle, Loader2, Edit2, Trash2 } from "lucide-react";
 import { CategoryBadge } from "@/components/category-badge";
 import {
   Dialog,
@@ -131,6 +131,18 @@ export default function Transactions() {
       toast({
         title: "Transaction added",
         description: "Your transaction has been created successfully",
+      });
+    },
+  });
+
+  const deleteTransactionMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/transactions/${id}`, undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
+      toast({
+        title: "Transaction deleted",
+        description: "Transaction has been removed successfully",
       });
     },
   });
@@ -273,18 +285,12 @@ export default function Transactions() {
                     <Card
                       key={transaction.id}
                       className={cn(
-                        "p-4 hover-elevate active-elevate-2 cursor-pointer",
+                        "p-4 hover-elevate active-elevate-2",
                         !transaction.categoryId && "border-l-4 border-l-amber-500"
                       )}
-                      onClick={() => {
-                        if (!transaction.categoryId) {
-                          setSelectedTransaction(transaction);
-                          setCategoryDialogOpen(true);
-                        }
-                      }}
                       data-testid={`card-transaction-${transaction.id}`}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{transaction.provider}</p>
                           <p className="text-sm text-muted-foreground">{transaction.description}</p>
@@ -301,8 +307,33 @@ export default function Transactions() {
                             transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
                           }`}>
                             {transaction.type === 'expense' ? '-' : '+'}
-                            {currencySymbol}{parseFloat(transaction.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            {currencySymbol}{Math.abs(parseFloat(transaction.amount)).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                           </p>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setSelectedTransaction(transaction);
+                                setCategoryDialogOpen(true);
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => {
+                                if (confirm("Are you sure you want to delete this transaction?")) {
+                                  deleteTransactionMutation.mutate(transaction.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </Card>
@@ -481,7 +512,7 @@ export default function Transactions() {
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign Category</DialogTitle>
+            <DialogTitle>Edit Category</DialogTitle>
             <DialogDescription>
               {selectedTransaction?.type === 'income' 
                 ? 'Choose an income category for this transaction.'
@@ -489,6 +520,12 @@ export default function Transactions() {
               } Your choice will be saved for future transactions from this provider.
             </DialogDescription>
           </DialogHeader>
+          {selectedTransaction?.categoryId && (
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground mb-1">Current category:</p>
+              <CategoryBadge categoryId={selectedTransaction.categoryId} categories={allCategories} />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2 py-4">
             {(() => {
               const transactionType = selectedTransaction?.type || 'expense';
@@ -505,7 +542,7 @@ export default function Transactions() {
               return filteredCategories.map((cat: any) => (
                 <Button
                   key={cat.id}
-                  variant="outline"
+                  variant={selectedTransaction?.categoryId === cat.id ? "default" : "outline"}
                   className="h-12"
                   onClick={() => handleAssignCategory(cat.id)}
                   disabled={updateTransactionMutation.isPending}

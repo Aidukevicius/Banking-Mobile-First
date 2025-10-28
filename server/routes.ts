@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { authMiddleware, AuthRequest, hashPassword, comparePassword, generateToken, generateResetToken, hashResetToken, getResetTokenExpiry } from "./auth";
 import { sendPasswordResetEmail } from "./resend-client";
 import { rateLimitPasswordReset } from "./rate-limiter";
-import { insertUserSchema, insertCategorySchema, insertTransactionSchema, insertMonthlyDataSchema, insertCategoryMappingSchema, insertUserSettingsSchema } from "@shared/schema";
+import { insertUserSchema, loginSchema, insertCategorySchema, insertTransactionSchema, insertMonthlyDataSchema, insertCategoryMappingSchema, insertUserSettingsSchema } from "@shared/schema";
 import { parsePdfStatement } from "./pdf-parser";
 import multer from "multer";
 
@@ -75,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { username, password } = insertUserSchema.parse(req.body);
+      const { username, password } = loginSchema.parse(req.body);
       
       const user = await storage.getUserByUsername(username);
       if (!user || !comparePassword(password, user.password)) {

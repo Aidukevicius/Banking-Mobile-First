@@ -25,9 +25,6 @@ export default function AuthPage({ onLogin, onRegister, isLoading }: AuthPagePro
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
-  const [resetToken, setResetToken] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [showResetForm, setShowResetForm] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,20 +57,12 @@ export default function AuthPage({ onLogin, onRegister, isLoading }: AuthPagePro
 
       if (response.ok) {
         toast({
-          title: "Reset link sent",
+          title: "Check your email",
           description: data.message,
+          duration: 5000,
         });
-
-        // In development, show the token
-        if (data.resetToken) {
-          setResetToken(data.resetToken);
-          setShowResetForm(true);
-          toast({
-            title: "Development Mode",
-            description: `Reset token: ${data.resetToken}`,
-            duration: 10000,
-          });
-        }
+        setShowForgotPassword(false);
+        setForgotEmail("");
       } else {
         toast({
           title: "Error",
@@ -84,44 +73,7 @@ export default function AuthPage({ onLogin, onRegister, isLoading }: AuthPagePro
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to send reset link",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: resetToken, newPassword }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast({
-          title: "Password reset successful",
-          description: "You can now log in with your new password",
-        });
-        setShowForgotPassword(false);
-        setShowResetForm(false);
-        setResetToken("");
-        setNewPassword("");
-        setForgotEmail("");
-      } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to reset password",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reset password",
+        description: "Failed to send reset link. Please try again.",
         variant: "destructive",
       });
     }
@@ -148,94 +100,47 @@ export default function AuthPage({ onLogin, onRegister, isLoading }: AuthPagePro
               <div className="space-y-2">
                 <h2 className="text-2xl font-semibold">Reset Password</h2>
                 <p className="text-sm text-muted-foreground">
-                  {showResetForm ? "Enter your new password" : "Enter your email to receive a reset link"}
+                  Enter your email to receive a reset link
                 </p>
               </div>
 
-              {!showResetForm ? (
-                <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="forgot-email">Email</Label>
-                    <Input
-                      id="forgot-email"
-                      type="email"
-                      placeholder="your.email@example.com"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      required
-                      className="h-12"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowForgotPassword(false);
-                        setForgotEmail("");
-                      }}
-                      className="flex-1 h-12"
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      className="flex-1 h-12"
-                    >
-                      {isLoading ? "Sending..." : "Send Reset Link"}
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <form onSubmit={handleResetPassword} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-token">Reset Token</Label>
-                    <Input
-                      id="reset-token"
-                      type="text"
-                      placeholder="Enter the reset token"
-                      value={resetToken}
-                      onChange={(e) => setResetToken(e.target.value)}
-                      required
-                      className="h-12"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new-password">New Password</Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      placeholder="Enter new password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                      className="h-12"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowResetForm(false);
-                        setResetToken("");
-                        setNewPassword("");
-                      }}
-                      className="flex-1 h-12"
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      className="flex-1 h-12"
-                    >
-                      {isLoading ? "Resetting..." : "Reset Password"}
-                    </Button>
-                  </div>
-                </form>
-              )}
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="forgot-email">Email</Label>
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    placeholder="your.email@example.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                    className="h-12"
+                    data-testid="input-forgot-email"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setForgotEmail("");
+                    }}
+                    className="flex-1 h-12"
+                    data-testid="button-back"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex-1 h-12"
+                    data-testid="button-send-reset"
+                  >
+                    {isLoading ? "Sending..." : "Send Reset Link"}
+                  </Button>
+                </div>
+              </form>
             </div>
           ) : (
             <Tabs defaultValue="login" className="w-full">
@@ -283,9 +188,10 @@ export default function AuthPage({ onLogin, onRegister, isLoading }: AuthPagePro
                   <div className="text-center">
                     <Button
                       type="button"
-                      variant="link"
+                      variant="ghost"
                       onClick={() => setShowForgotPassword(true)}
                       className="text-sm text-muted-foreground hover:text-primary"
+                      data-testid="button-forgot-password"
                     >
                       Forgot your password?
                     </Button>

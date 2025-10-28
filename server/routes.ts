@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { authMiddleware, AuthRequest, hashPassword, comparePassword, generateToken, generateResetToken, getResetTokenExpiry } from "./auth";
+import { authMiddleware, AuthRequest, hashPassword, comparePassword, generateToken, generateResetToken, hashResetToken, getResetTokenExpiry } from "./auth";
+import { sendPasswordResetEmail } from "./resend-client";
 import { insertUserSchema, insertCategorySchema, insertTransactionSchema, insertMonthlyDataSchema, insertCategoryMappingSchema, insertUserSettingsSchema } from "@shared/schema";
 import { parsePdfStatement } from "./pdf-parser";
 import multer from "multer";
@@ -109,26 +110,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await storage.getUserByEmail(email);
       
-      // Don't reveal if user exists for security
+      // Always return success message for security (don't reveal if user exists)
+      const successMessage = "If that email exists, a reset link has been sent";
+      
       if (!user) {
-        return res.json({ message: "If that email exists, a reset link has been sent" });
+        return res.json({ message: successMessage });
       }
 
       const resetToken = generateResetToken();
+      const hashedToken = hashResetToken(resetToken);
       const expiry = getResetTokenExpiry();
       
-      await storage.setResetToken(user.id, resetToken, expiry);
+      await storage.setResetToken(user.id, hashedToken, expiry);
 
-      // In production, you would send an email here
-      // For now, we'll just return the token (DEV ONLY - REMOVE IN PRODUCTION)
-      console.log(`Password reset token for ${email}: ${resetToken}`);
+      try {
+        await sendPasswordResetEmail(user.email, resetToken, user.username);
+        console.log(`Password reset email sent to ${email}`);
+      } catch (emailError: any) {
+        console.error("Failed to send password reset email:", emailError);
+        return res.status(500).json({ error: "Failed to send reset email. Please try again later." });
+      }
       
-      res.json({ 
-        message: "If that email exists, a reset link has been sent",
-        // DEV ONLY - remove in production
-        resetToken: process.env.NODE_ENV === "development" ? resetToken : undefined
-      });
+      res.json({ message: successMessage });
     } catch (error: any) {
+      console.error("Forgot password error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -141,7 +146,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Token and new password are required" });
       }
 
-      const user = await storage.getUserByResetToken(token);
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      const hashedToken = hashResetToken(token);
+      const user = await storage.getUserByResetToken(hashedToken);
       
       if (!user || !user.resetTokenExpiry) {
         return res.status(400).json({ error: "Invalid or expired reset token" });
@@ -149,14 +159,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if token is expired
       if (new Date() > user.resetTokenExpiry) {
-        return res.status(400).json({ error: "Reset token has expired" });
+        await storage.updateUserPassword(user.id, user.password);
+        return res.status(400).json({ error: "Reset token has expired. Please request a new one." });
       }
 
       const hashedPassword = hashPassword(newPassword);
       await storage.updateUserPassword(user.id, hashedPassword);
 
+      console.log(`Password successfully reset for user ${user.username}`);
       res.json({ message: "Password has been reset successfully" });
     } catch (error: any) {
+      console.error("Reset password error:", error);
       res.status(500).json({ error: error.message });
     }
   });

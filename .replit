@@ -55,5 +55,5 @@ task = "shell.exec"
 args = "node test-api.js"
 
 [agent]
-integrations = ["javascript_database:1.0.0"]
+integrations = ["javascript_database:1.0.0", "resend:1.0.0"]
 expertMode = true

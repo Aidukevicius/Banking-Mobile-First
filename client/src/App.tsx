@@ -15,6 +15,7 @@ import Portfolio from "@/pages/portfolio";
 import Income from "@/pages/income";
 import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth";
+import ResetPasswordPage from "@/pages/reset-password";
 
 function Router() {
   const { user, login, register, isLoading } = useAuth();
@@ -30,22 +31,25 @@ function Router() {
     );
   }
 
-  if (!user) {
-    return <AuthPage onLogin={login} onRegister={register} isLoading={isLoading} />;
-  }
-
   return (
     <>
       <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/transactions" component={Transactions} />
-        <Route path="/categories" component={Categories} />
-        <Route path="/income" component={Income} />
-        <Route path="/portfolio" component={Portfolio} />
-        <Route path="/settings" component={Settings} />
+        <Route path="/reset-password" component={ResetPasswordPage} />
+        {!user ? (
+          <Route path="/" component={() => <AuthPage onLogin={login} onRegister={register} isLoading={isLoading} />} />
+        ) : (
+          <>
+            <Route path="/" component={Dashboard} />
+            <Route path="/transactions" component={Transactions} />
+            <Route path="/categories" component={Categories} />
+            <Route path="/income" component={Income} />
+            <Route path="/portfolio" component={Portfolio} />
+            <Route path="/settings" component={Settings} />
+          </>
+        )}
         <Route component={NotFound} />
       </Switch>
-      <BottomNav />
+      {user && <BottomNav />}
     </>
   );
 }

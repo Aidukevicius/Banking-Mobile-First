@@ -1,51 +1,33 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-let connectionSettings: any;
+let transporter: nodemailer.Transporter | null = null;
 
-async function getCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY 
-    ? 'repl ' + process.env.REPL_IDENTITY 
-    : process.env.WEB_REPL_RENEWAL 
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-    : null;
-
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+async function getTransporter() {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
   }
-
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  if (!connectionSettings || (!connectionSettings.settings.api_key)) {
-    throw new Error('Resend not connected');
-  }
-  return {apiKey: connectionSettings.settings.api_key, fromEmail: connectionSettings.settings.from_email};
-}
-
-export async function getUncachableResendClient() {
-  const credentials = await getCredentials();
-  return {
-    client: new Resend(credentials.apiKey),
-    fromEmail: connectionSettings.settings.from_email
-  };
+  return transporter;
 }
 
 export async function sendPasswordResetEmail(to: string, resetToken: string, username: string) {
-  const { client, fromEmail } = await getUncachableResendClient();
+  const transport = await getTransporter();
   
   const resetUrl = `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/reset-password?token=${resetToken}`;
   
-  const { data, error } = await client.emails.send({
-    from: fromEmail,
-    to: [to],
+  const fromEmail = process.env.FROM_EMAIL || 'noreply@finance-tracker.app';
+  const fromName = process.env.FROM_NAME || 'Finance Tracker';
+  
+  const mailOptions = {
+    from: `${fromName} <${fromEmail}>`,
+    to: to,
     subject: 'Reset Your Finance Tracker Password',
     html: `
       <!DOCTYPE html>
@@ -140,11 +122,13 @@ export async function sendPasswordResetEmail(to: string, resetToken: string, use
         </body>
       </html>
     `,
-  });
+  };
 
-  if (error) {
+  try {
+    const info = await transport.sendMail(mailOptions);
+    console.log(`Email sent successfully: ${info.messageId}`);
+    return { id: info.messageId };
+  } catch (error: any) {
     throw new Error(`Failed to send email: ${error.message}`);
   }
-
-  return data;
 }

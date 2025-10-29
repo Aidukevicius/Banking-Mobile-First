@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Category } from "@shared/schema";
 
 export default function Categories() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -27,7 +28,7 @@ export default function Categories() {
   const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
   const { toast } = useToast();
 
-  const { data: categories = [], isLoading } = useQuery({
+  const { data: categories = [], isLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 

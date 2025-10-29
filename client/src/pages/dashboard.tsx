@@ -8,6 +8,7 @@ import { DollarSign, TrendingDown } from "lucide-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { UserSettings, MonthlyData, Transaction, Category } from "@shared/schema";
 
 // Helper to get current month in YYYY-MM format
 const getCurrentMonth = () => {
@@ -21,7 +22,7 @@ export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const { toast } = useToast();
 
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
   });
 
@@ -39,15 +40,15 @@ export default function Dashboard() {
 
   const currencySymbol = getCurrencySymbol(settings?.currency || "USD");
 
-  const { data: monthlyData, isLoading: monthlyLoading } = useQuery({
+  const { data: monthlyData, isLoading: monthlyLoading } = useQuery<MonthlyData>({
     queryKey: [`/api/monthly-data/${selectedMonth}`],
   });
 
-  const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
+  const { data: transactions = [], isLoading: transactionsLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions", { month: selectedMonth }],
   });
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 

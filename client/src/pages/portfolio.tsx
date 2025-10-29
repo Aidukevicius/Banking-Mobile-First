@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { SavingsPot, UserSettings } from "@shared/schema";
 
 const getCurrentMonth = () => {
   const now = new Date();
@@ -55,15 +56,15 @@ export default function Portfolio() {
   const [currentType, setCurrentType] = useState<"savings" | "investments">("savings");
   const { toast } = useToast();
 
-  const { data: savingsPots = [], isLoading: savingsLoading } = useQuery({
+  const { data: savingsPots = [], isLoading: savingsLoading } = useQuery<SavingsPot[]>({
     queryKey: ["/api/savings-pots", { type: "savings" }],
   });
 
-  const { data: investmentPots = [], isLoading: investmentsLoading } = useQuery({
+  const { data: investmentPots = [], isLoading: investmentsLoading } = useQuery<SavingsPot[]>({
     queryKey: ["/api/savings-pots", { type: "investments" }],
   });
 
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
   });
 

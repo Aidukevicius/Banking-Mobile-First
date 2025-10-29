@@ -16,13 +16,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "lucide-react";
+import type { UserSettings } from "@shared/schema";
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { logout, user } = useAuth();
   const { toast } = useToast();
 
-  const { data: settings, isLoading } = useQuery({
+  const { data: settings, isLoading } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
   });
 

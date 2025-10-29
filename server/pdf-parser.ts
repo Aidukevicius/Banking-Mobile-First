@@ -112,7 +112,7 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
     }
     
     // Convert map values to array
-    transactions.push(...seen.values());
+    transactions.push(...Array.from(seen.values()));
 
     console.log('Parsed transactions:', transactions.length);
     if (transactions.length > 0) {

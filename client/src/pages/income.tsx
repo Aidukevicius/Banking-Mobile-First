@@ -23,6 +23,7 @@ import {
 import { MonthSelector } from "@/components/month-selector";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { MonthlyData, Transaction, Category, UserSettings } from "@shared/schema";
 
 const getCurrentMonth = () => {
   const now = new Date();
@@ -47,23 +48,23 @@ export default function Income() {
   });
   const { toast } = useToast();
 
-  const { data: monthlyData } = useQuery({
+  const { data: monthlyData } = useQuery<MonthlyData>({
     queryKey: [`/api/monthly-data/${selectedMonth}`],
   });
 
-  const { data: incomeTransactions = [], isLoading } = useQuery({
+  const { data: incomeTransactions = [], isLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions", { month: selectedMonth }],
-    select: (data: any[]) => data.filter((t: any) => t.type === 'income'),
+    select: (data: Transaction[]) => data.filter((t) => t.type === 'income'),
   });
 
-  const { data: allCategories = [] } = useQuery({
+  const { data: allCategories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 
   // Filter income categories
-  const incomeCategories = allCategories.filter((cat: any) => cat.type === 'income');
+  const incomeCategories = allCategories.filter((cat) => cat.type === 'income');
 
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
   });
 

@@ -38,11 +38,18 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
       ...parseFormatType8(lines),     // Aggressive line-by-line scan
       ...parseFormatType9(lines),     // Multi-line context aware
       ...parseFormatType10(text),     // Whole text regex patterns
+      ...parseRevolutFormat(lines),   // Revolut-specific format
     ];
 
-    // Deduplicate transactions
+    // Deduplicate and validate transactions
     const seen = new Set<string>();
     for (const transaction of parsedTransactions) {
+      // Validate date before adding
+      if (!isValidDate(transaction.date)) {
+        console.log('Skipping invalid date:', transaction.date, 'for transaction:', transaction.description);
+        continue;
+      }
+      
       const key = `${transaction.date}-${Math.abs(transaction.amount)}-${transaction.description.substring(0, 20)}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -64,6 +71,122 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
       await parser.destroy();
     }
   }
+}
+
+// Validate date string
+function isValidDate(dateStr: string): boolean {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    return false;
+  }
+  
+  // Check if the date components are valid
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return false;
+  
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  const day = parseInt(parts[2]);
+  
+  if (year < 1900 || year > 2100) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  
+  // Verify the date is valid (e.g., not Feb 30)
+  const testDate = new Date(year, month - 1, day);
+  return testDate.getFullYear() === year && 
+         testDate.getMonth() === month - 1 && 
+         testDate.getDate() === day;
+}
+
+// Revolut-specific format parser
+function parseRevolutFormat(lines: string[]): ParsedTransaction[] {
+  const transactions: ParsedTransaction[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Look for Revolut patterns: "MMM DD, YYYY" or "DD MMM YYYY"
+    const datePatterns = [
+      /\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})\b/i,
+      /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})\b/i,
+    ];
+    
+    const monthMap: { [key: string]: string } = {
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
+    };
+    
+    let dateMatch = null;
+    let normalizedDate = '';
+    
+    for (const pattern of datePatterns) {
+      const match = line.match(pattern);
+      if (match) {
+        dateMatch = match;
+        if (pattern === datePatterns[0]) {
+          // DD MMM YYYY
+          const day = match[1].padStart(2, '0');
+          const month = monthMap[match[2].toLowerCase()] || '01';
+          const year = match[3];
+          normalizedDate = `${year}-${month}-${day}`;
+        } else {
+          // MMM DD, YYYY
+          const month = monthMap[match[1].toLowerCase()] || '01';
+          const day = match[2].padStart(2, '0');
+          const year = match[3];
+          normalizedDate = `${year}-${month}-${day}`;
+        }
+        break;
+      }
+    }
+    
+    if (!dateMatch || !normalizedDate) continue;
+    
+    // Look for amounts in current and next few lines
+    let amount = null;
+    let description = '';
+    
+    for (let j = 0; j <= 2 && i + j < lines.length; j++) {
+      const checkLine = lines[i + j].trim();
+      
+      // Match amounts: "-123.45 RON", "123.45 EUR", etc.
+      const amountMatch = checkLine.match(/(-?\d+(?:,\d{3})*\.\d{2})\s*(?:RON|EUR|USD|GBP|CHF|PLN|CZK|HUF)/i);
+      
+      if (amountMatch) {
+        const amountStr = amountMatch[1].replace(/,/g, '');
+        amount = parseFloat(amountStr);
+        
+        // Extract description (text between date and amount)
+        if (j === 0) {
+          const amountIndex = checkLine.indexOf(amountMatch[0]);
+          const dateIndex = checkLine.indexOf(dateMatch[0]);
+          if (dateIndex < amountIndex) {
+            description = checkLine.substring(dateIndex + dateMatch[0].length, amountIndex).trim();
+          } else {
+            description = checkLine.replace(dateMatch[0], '').replace(amountMatch[0], '').trim();
+          }
+        } else {
+          // Description is on previous line(s)
+          description = lines.slice(i, i + j).map(l => l.replace(dateMatch[0], '').trim()).join(' ').trim();
+        }
+        break;
+      }
+    }
+    
+    if (amount !== null && description) {
+      const provider = extractProvider(description);
+      transactions.push({
+        date: normalizedDate,
+        description: description || 'Transaction',
+        provider: provider || 'Unknown',
+        amount,
+      });
+    }
+  }
+  
+  return transactions;
 }
 
 // Format 1: YYYY-MM-DD format
@@ -113,10 +236,19 @@ function parseFormatType2(lines: string[]): ParsedTransaction[] {
 
     if (dateMatch && amountMatch) {
       const dateParts = dateMatch[0].split('/');
-      const month = dateParts[0].padStart(2, '0');
-      const day = dateParts[1].padStart(2, '0');
-      const year = dateParts[2];
-      const date = `${year}-${month}-${day}`;
+      let month = dateParts[0].padStart(2, '0');
+      let day = dateParts[1].padStart(2, '0');
+      let year = dateParts[2];
+      
+      // Try DD/MM/YYYY if MM/DD/YYYY produces invalid date
+      let date = `${year}-${month}-${day}`;
+      if (!isValidDate(date)) {
+        // Swap day and month
+        date = `${year}-${day}-${month}`;
+        if (!isValidDate(date)) {
+          continue; // Skip this transaction
+        }
+      }
       
       const amountStr = amountMatch[0].replace(/[\$\s,]/g, '');
       const amount = parseFloat(amountStr);

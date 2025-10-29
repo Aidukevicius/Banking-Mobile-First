@@ -106,14 +106,28 @@ function parseRevolutFormat(lines: string[]): ParsedTransaction[] {
   // Find the header line to understand column positions
   let moneyOutColumn = -1;
   let moneyInColumn = -1;
+  let headerLineIndex = -1;
   
-  for (let i = 0; i < Math.min(20, lines.length); i++) {
-    const line = lines[i].toLowerCase();
-    if (line.includes('money out') && line.includes('money in')) {
-      const outIndex = line.indexOf('money out');
-      const inIndex = line.indexOf('money in');
-      moneyOutColumn = outIndex;
-      moneyInColumn = inIndex;
+  for (let i = 0; i < Math.min(30, lines.length); i++) {
+    const line = lines[i];
+    const lowerLine = line.toLowerCase();
+    
+    // Look for the exact Revolut header format
+    if (lowerLine.includes('money out') && lowerLine.includes('money in')) {
+      const outIndex = line.indexOf('Money out');
+      const inIndex = line.indexOf('Money in');
+      
+      if (outIndex === -1) {
+        // Try lowercase
+        moneyOutColumn = line.toLowerCase().indexOf('money out');
+        moneyInColumn = line.toLowerCase().indexOf('money in');
+      } else {
+        moneyOutColumn = outIndex;
+        moneyInColumn = inIndex;
+      }
+      
+      headerLineIndex = i;
+      console.log(`Found header at line ${i}, Money out column: ${moneyOutColumn}, Money in column: ${moneyInColumn}`);
       break;
     }
   }
@@ -168,53 +182,106 @@ function parseRevolutFormat(lines: string[]): ParsedTransaction[] {
       const checkLine = lines[i + j].trim();
       const fullLine = lines[i + j]; // Keep original spacing for column detection
       
-      // Match amounts: "-123.45 RON", "123.45 EUR", etc.
+      // Match amounts: "123.45 RON", "1,234.56 EUR", etc. (no minus sign in the text)
       const amountMatches = [...checkLine.matchAll(/(\d+(?:,\d{3})*\.\d{2})\s*(?:RON|EUR|USD|GBP|CHF|PLN|CZK|HUF)/gi)];
       
       if (amountMatches.length > 0) {
-        // If we have multiple amounts on the same line, determine which is money out vs money in
+        // If we have TWO amounts on the same line, they represent Money Out and Money In
         if (amountMatches.length === 2 && moneyOutColumn !== -1 && moneyInColumn !== -1) {
-          // Find position of each amount in the line
+          // Find position of each amount in the full line (with spacing)
           const firstPos = fullLine.indexOf(amountMatches[0][0]);
           const secondPos = fullLine.indexOf(amountMatches[1][0]);
           
-          // Determine which amount is in the "money out" column
+          console.log(`Two amounts found: "${amountMatches[0][0]}" at pos ${firstPos}, "${amountMatches[1][0]}" at pos ${secondPos}`);
+          console.log(`Columns: Money Out at ${moneyOutColumn}, Money In at ${moneyInColumn}`);
+          
+          // The amount closer to the "Money out" column is a debit (negative)
+          // The amount closer to the "Money in" column is a credit (positive)
+          const firstDistToOut = Math.abs(firstPos - moneyOutColumn);
+          const firstDistToIn = Math.abs(firstPos - moneyInColumn);
+          const secondDistToOut = Math.abs(secondPos - moneyOutColumn);
+          const secondDistToIn = Math.abs(secondPos - moneyInColumn);
+          
           let selectedMatch;
-          if (Math.abs(firstPos - moneyOutColumn) < Math.abs(secondPos - moneyOutColumn)) {
-            selectedMatch = amountMatches[0];
-            isMoneyOut = true;
-          } else if (Math.abs(secondPos - moneyOutColumn) < Math.abs(firstPos - moneyOutColumn)) {
-            selectedMatch = amountMatches[1];
-            isMoneyOut = true;
-          } else if (Math.abs(firstPos - moneyInColumn) < Math.abs(secondPos - moneyInColumn)) {
-            selectedMatch = amountMatches[0];
-            isMoneyOut = false;
+          
+          // Determine which amount to use based on which column has a value
+          if (firstDistToOut < firstDistToIn && secondDistToIn < secondDistToOut) {
+            // First is money out, second is money in - use the one that's not zero
+            const firstVal = parseFloat(amountMatches[0][1].replace(/,/g, ''));
+            const secondVal = parseFloat(amountMatches[1][1].replace(/,/g, ''));
+            
+            if (firstVal > 0 && secondVal === 0) {
+              selectedMatch = amountMatches[0];
+              isMoneyOut = true;
+            } else if (secondVal > 0 && firstVal === 0) {
+              selectedMatch = amountMatches[1];
+              isMoneyOut = false;
+            } else {
+              // Both have values or both are zero - use money out
+              selectedMatch = amountMatches[0];
+              isMoneyOut = true;
+            }
+          } else if (secondDistToOut < secondDistToIn && firstDistToIn < firstDistToOut) {
+            // Second is money out, first is money in
+            const firstVal = parseFloat(amountMatches[0][1].replace(/,/g, ''));
+            const secondVal = parseFloat(amountMatches[1][1].replace(/,/g, ''));
+            
+            if (secondVal > 0 && firstVal === 0) {
+              selectedMatch = amountMatches[1];
+              isMoneyOut = true;
+            } else if (firstVal > 0 && secondVal === 0) {
+              selectedMatch = amountMatches[0];
+              isMoneyOut = false;
+            } else {
+              selectedMatch = amountMatches[1];
+              isMoneyOut = true;
+            }
           } else {
-            selectedMatch = amountMatches[1];
-            isMoneyOut = false;
+            // Fallback: use first amount and guess based on position
+            selectedMatch = amountMatches[0];
+            isMoneyOut = firstDistToOut < firstDistToIn;
           }
           
           const amountStr = selectedMatch[1].replace(/,/g, '');
           amount = parseFloat(amountStr);
+          
+          console.log(`Selected amount: ${amount}, isMoneyOut: ${isMoneyOut}`);
+          
           if (isMoneyOut) {
             amount = -Math.abs(amount); // Money out is negative
           } else {
             amount = Math.abs(amount); // Money in is positive
           }
-        } else {
-          // Single amount or can't determine columns - use first match
+        } else if (amountMatches.length === 1) {
+          // Single amount - need to determine if it's in the "money out" or "money in" column
           const amountMatch = amountMatches[0];
+          const amountPos = fullLine.indexOf(amountMatch[0]);
+          
           const amountStr = amountMatch[1].replace(/,/g, '');
           amount = parseFloat(amountStr);
           
-          // Try to determine based on keywords in description
-          const lineText = checkLine.toLowerCase();
-          if (lineText.includes('top up') || lineText.includes('topup') || 
-              lineText.includes('deposit') || lineText.includes('received')) {
-            amount = Math.abs(amount);
-          } else if (lineText.includes('transfer') || lineText.includes('payment') || 
-                     lineText.includes('purchase') || lineText.includes('withdrawal')) {
-            amount = -Math.abs(amount);
+          // Determine which column this amount is in
+          if (moneyOutColumn !== -1 && moneyInColumn !== -1) {
+            const distToOut = Math.abs(amountPos - moneyOutColumn);
+            const distToIn = Math.abs(amountPos - moneyInColumn);
+            
+            if (distToOut < distToIn) {
+              amount = -Math.abs(amount); // Money out column = negative
+              console.log(`Single amount ${amount} in Money Out column`);
+            } else {
+              amount = Math.abs(amount); // Money in column = positive
+              console.log(`Single amount ${amount} in Money In column`);
+            }
+          } else {
+            // Can't determine columns - use keywords
+            const lineText = checkLine.toLowerCase();
+            if (lineText.includes('top up') || lineText.includes('topup') || 
+                lineText.includes('deposit') || lineText.includes('received') ||
+                lineText.includes('from ')) {
+              amount = Math.abs(amount);
+            } else {
+              amount = -Math.abs(amount);
+            }
           }
         }
         

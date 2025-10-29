@@ -14,7 +14,7 @@ export async function apiRequest(
 
   if (!token) {
     localStorage.removeItem("token");
-    window.location.href = "/auth";
+    window.location.href = "/";
     throw new Error("No authentication token found");
   }
 
@@ -36,7 +36,7 @@ export async function apiRequest(
   if (!response.ok) {
     if (response.status === 401) {
       localStorage.removeItem("token");
-      window.location.href = "/auth";
+      window.location.href = "/";
       throw new Error("Unauthorized");
     }
     const error = await response.text();

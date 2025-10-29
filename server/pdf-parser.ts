@@ -103,6 +103,21 @@ function isValidDate(dateStr: string): boolean {
 function parseRevolutFormat(lines: string[]): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = [];
   
+  // Find the header line to understand column positions
+  let moneyOutColumn = -1;
+  let moneyInColumn = -1;
+  
+  for (let i = 0; i < Math.min(20, lines.length); i++) {
+    const line = lines[i].toLowerCase();
+    if (line.includes('money out') && line.includes('money in')) {
+      const outIndex = line.indexOf('money out');
+      const inIndex = line.indexOf('money in');
+      moneyOutColumn = outIndex;
+      moneyInColumn = inIndex;
+      break;
+    }
+  }
+  
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     
@@ -147,25 +162,70 @@ function parseRevolutFormat(lines: string[]): ParsedTransaction[] {
     // Look for amounts in current and next few lines
     let amount = null;
     let description = '';
+    let isMoneyOut = false;
     
     for (let j = 0; j <= 2 && i + j < lines.length; j++) {
       const checkLine = lines[i + j].trim();
+      const fullLine = lines[i + j]; // Keep original spacing for column detection
       
       // Match amounts: "-123.45 RON", "123.45 EUR", etc.
-      const amountMatch = checkLine.match(/(-?\d+(?:,\d{3})*\.\d{2})\s*(?:RON|EUR|USD|GBP|CHF|PLN|CZK|HUF)/i);
+      const amountMatches = [...checkLine.matchAll(/(\d+(?:,\d{3})*\.\d{2})\s*(?:RON|EUR|USD|GBP|CHF|PLN|CZK|HUF)/gi)];
       
-      if (amountMatch) {
-        const amountStr = amountMatch[1].replace(/,/g, '');
-        amount = parseFloat(amountStr);
+      if (amountMatches.length > 0) {
+        // If we have multiple amounts on the same line, determine which is money out vs money in
+        if (amountMatches.length === 2 && moneyOutColumn !== -1 && moneyInColumn !== -1) {
+          // Find position of each amount in the line
+          const firstPos = fullLine.indexOf(amountMatches[0][0]);
+          const secondPos = fullLine.indexOf(amountMatches[1][0]);
+          
+          // Determine which amount is in the "money out" column
+          let selectedMatch;
+          if (Math.abs(firstPos - moneyOutColumn) < Math.abs(secondPos - moneyOutColumn)) {
+            selectedMatch = amountMatches[0];
+            isMoneyOut = true;
+          } else if (Math.abs(secondPos - moneyOutColumn) < Math.abs(firstPos - moneyOutColumn)) {
+            selectedMatch = amountMatches[1];
+            isMoneyOut = true;
+          } else if (Math.abs(firstPos - moneyInColumn) < Math.abs(secondPos - moneyInColumn)) {
+            selectedMatch = amountMatches[0];
+            isMoneyOut = false;
+          } else {
+            selectedMatch = amountMatches[1];
+            isMoneyOut = false;
+          }
+          
+          const amountStr = selectedMatch[1].replace(/,/g, '');
+          amount = parseFloat(amountStr);
+          if (isMoneyOut) {
+            amount = -Math.abs(amount); // Money out is negative
+          } else {
+            amount = Math.abs(amount); // Money in is positive
+          }
+        } else {
+          // Single amount or can't determine columns - use first match
+          const amountMatch = amountMatches[0];
+          const amountStr = amountMatch[1].replace(/,/g, '');
+          amount = parseFloat(amountStr);
+          
+          // Try to determine based on keywords in description
+          const lineText = checkLine.toLowerCase();
+          if (lineText.includes('top up') || lineText.includes('topup') || 
+              lineText.includes('deposit') || lineText.includes('received')) {
+            amount = Math.abs(amount);
+          } else if (lineText.includes('transfer') || lineText.includes('payment') || 
+                     lineText.includes('purchase') || lineText.includes('withdrawal')) {
+            amount = -Math.abs(amount);
+          }
+        }
         
         // Extract description (text between date and amount)
         if (j === 0) {
-          const amountIndex = checkLine.indexOf(amountMatch[0]);
+          const amountIndex = checkLine.indexOf(amountMatches[0][0]);
           const dateIndex = checkLine.indexOf(dateMatch[0]);
           if (dateIndex < amountIndex) {
             description = checkLine.substring(dateIndex + dateMatch[0].length, amountIndex).trim();
           } else {
-            description = checkLine.replace(dateMatch[0], '').replace(amountMatch[0], '').trim();
+            description = checkLine.replace(dateMatch[0], '').replace(amountMatches[0][0], '').trim();
           }
         } else {
           // Description is on previous line(s)

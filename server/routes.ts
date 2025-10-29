@@ -334,6 +334,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/transactions/clear-all", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const deleted = await storage.clearAllTransactions(req.userId!);
+      
+      // Reset all monthly data
+      const monthlyData = await storage.getAllMonthlyData(req.userId!);
+      for (const data of monthlyData) {
+        await storage.createOrUpdateMonthlyData({
+          userId: req.userId!,
+          monthYear: data.monthYear,
+          income: "0",
+          expenses: "0",
+          savings: data.savings || "0",
+          investments: data.investments || "0",
+        });
+      }
+      
+      res.json({ success: true, deleted });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // PDF upload and parsing
   app.post("/api/transactions/upload-pdf", authMiddleware, upload.single("pdf"), async (req: AuthRequest, res) => {
     try {

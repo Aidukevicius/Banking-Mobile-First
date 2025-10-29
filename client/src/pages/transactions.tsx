@@ -27,6 +27,7 @@ export default function Transactions() {
   const [addTransactionDialogOpen, setAddTransactionDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [editedTransaction, setEditedTransaction] = useState<{
@@ -178,6 +179,19 @@ export default function Transactions() {
     },
   });
 
+  const clearAllTransactionsMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", "/api/transactions/clear-all", undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
+      setClearAllDialogOpen(false);
+      toast({
+        title: "All transactions cleared",
+        description: "All your transactions have been removed successfully",
+      });
+    },
+  });
+
   const filteredTransactions = transactions.filter((t) =>
     (t.provider?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
     (t.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
@@ -273,6 +287,17 @@ export default function Transactions() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Transactions</h1>
         <div className="flex gap-2">
+          {transactions.length > 0 && (
+            <Button
+              onClick={() => setClearAllDialogOpen(true)}
+              variant="outline"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              data-testid="button-clear-all"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clear All
+            </Button>
+          )}
           <Button
             onClick={() => setAddTransactionDialogOpen(true)}
             variant="outline"
@@ -705,6 +730,44 @@ export default function Transactions() {
               className="flex-1"
             >
               Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear All Confirmation Dialog */}
+      <Dialog open={clearAllDialogOpen} onOpenChange={setClearAllDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear All Transactions</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete ALL {transactions.length} transactions? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg">
+            <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
+              <AlertCircle className="w-5 h-5" />
+              <span className="text-sm font-medium">
+                This will permanently delete all your transactions and reset all monthly data.
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setClearAllDialogOpen(false)}
+              className="flex-1"
+              disabled={clearAllTransactionsMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => clearAllTransactionsMutation.mutate()}
+              disabled={clearAllTransactionsMutation.isPending}
+              className="flex-1"
+            >
+              {clearAllTransactionsMutation.isPending ? "Clearing..." : "Clear All"}
             </Button>
           </div>
         </DialogContent>

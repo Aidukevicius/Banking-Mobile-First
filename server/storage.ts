@@ -50,6 +50,7 @@ export interface IStorage {
   createTransaction(transaction: InsertTransaction & { userId: string }): Promise<Transaction>;
   updateTransaction(id: string, userId: string, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   deleteTransaction(id: string, userId: string): Promise<boolean>;
+  clearAllTransactions(userId: string): Promise<number>;
 
   // Category mapping methods
   getCategoryMappings(userId: string): Promise<CategoryMapping[]>;
@@ -208,6 +209,13 @@ export class DatabaseStorage implements IStorage {
       .delete(transactions)
       .where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async clearAllTransactions(userId: string): Promise<number> {
+    const result = await db
+      .delete(transactions)
+      .where(eq(transactions.userId, userId));
+    return result.rowCount !== null && result.rowCount > 0 ? result.rowCount : 0;
   }
 
   // Category mapping methods

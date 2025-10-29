@@ -17,6 +17,21 @@ import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth";
 import ResetPasswordPage from "@/pages/reset-password";
 
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="light">
+        <AuthProvider>
+          <TooltipProvider>
+            <AppContent />
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
+
 function AppContent() {
   const { user, login, register, isLoading } = useAuth();
 
@@ -51,21 +66,6 @@ function AppContent() {
       </Switch>
       {user && <BottomNav />}
     </div>
-  );
-}
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light">
-        <AuthProvider>
-          <TooltipProvider>
-            <AppContent />
-            <Toaster />
-          </TooltipProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
   );
 }
 

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface User {
@@ -152,8 +152,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const contextValue = useMemo(
+    () => ({ user, token, login, register, logout, isLoading }),
+    [user, token, isLoading]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

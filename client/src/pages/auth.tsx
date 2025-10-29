@@ -25,10 +25,12 @@ export default function AuthPage({ onLogin, onRegister, isLoading }: AuthPagePro
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
+  const [loginKey, setLoginKey] = useState(0);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     onLogin(loginUsername, loginPassword);
+    // Don't reset the form, just let it stay as is
   };
 
   const handleRegister = (e: React.FormEvent) => {
@@ -150,7 +152,7 @@ export default function AuthPage({ onLogin, onRegister, isLoading }: AuthPagePro
               </TabsList>
 
               <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4" key={loginKey}>
                   <div className="space-y-2">
                     <Label htmlFor="login-username">Username</Label>
                     <Input

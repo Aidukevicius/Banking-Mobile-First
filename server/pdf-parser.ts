@@ -85,17 +85,24 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
       return true;
     });
 
-    // Deduplicate by date and amount
+    // Deduplicate by date, amount, AND description similarity
     const seen = new Map<string, ParsedTransaction>();
     
     for (const transaction of filteredTransactions) {
-      const key = `${transaction.date}-${Math.abs(transaction.amount).toFixed(2)}`;
+      // Create a more specific key that includes part of the description
+      // This allows same amounts from different people on the same day
+      const descriptionKey = transaction.description
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .substring(0, 20); // First 20 chars of cleaned description
       
-      // If we've seen this date+amount combo, keep the one with the better description
+      const key = `${transaction.date}-${Math.abs(transaction.amount).toFixed(2)}-${descriptionKey}`;
+      
+      // If we've seen this exact combo (same date, amount, and similar description)
       if (seen.has(key)) {
         const existing = seen.get(key)!;
         
-        // Prefer shorter, cleaner descriptions
+        // Prefer shorter, cleaner descriptions for true duplicates
         if (transaction.description.length < existing.description.length) {
           seen.set(key, transaction);
         }

@@ -17,7 +17,8 @@ function getApiInstance() {
 export async function sendPasswordResetEmail(to: string, resetToken: string, username: string) {
   const api = getApiInstance();
   
-  const resetUrl = `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/reset-password?token=${resetToken}`;
+  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+  const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
   
   const fromEmail = process.env.FROM_EMAIL || 'dom.aidukevicius@gmail.com';
   const fromName = process.env.FROM_NAME || 'Finance Tracker';

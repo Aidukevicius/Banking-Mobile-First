@@ -103,39 +103,29 @@ function isValidDate(dateStr: string): boolean {
 function parseRevolutFormat(lines: string[]): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = [];
   
-  // Find the header line to understand column positions
-  let moneyOutColumn = -1;
-  let moneyInColumn = -1;
-  let headerLineIndex = -1;
+  // Keywords that indicate money IN (positive)
+  const moneyInKeywords = [
+    'top up', 'topup', 'top-up',
+    'deposit', 'received', 'receive',
+    'transfer from', 'from',
+    'refund', 'cashback', 'reward',
+    'income', 'salary', 'payment received',
+    'credited', 'added'
+  ];
   
-  for (let i = 0; i < Math.min(30, lines.length); i++) {
-    const line = lines[i];
-    const lowerLine = line.toLowerCase();
-    
-    // Look for the exact Revolut header format
-    if (lowerLine.includes('money out') && lowerLine.includes('money in')) {
-      const outIndex = line.indexOf('Money out');
-      const inIndex = line.indexOf('Money in');
-      
-      if (outIndex === -1) {
-        // Try lowercase
-        moneyOutColumn = line.toLowerCase().indexOf('money out');
-        moneyInColumn = line.toLowerCase().indexOf('money in');
-      } else {
-        moneyOutColumn = outIndex;
-        moneyInColumn = inIndex;
-      }
-      
-      headerLineIndex = i;
-      console.log(`Found header at line ${i}, Money out column: ${moneyOutColumn}, Money in column: ${moneyInColumn}`);
-      break;
-    }
-  }
+  // Keywords that indicate money OUT (negative)
+  const moneyOutKeywords = [
+    'transfer to', 'to',
+    'payment', 'purchase', 'card payment',
+    'withdrawal', 'atm', 'withdraw',
+    'fee', 'charge', 'debit',
+    'sent', 'transfer out'
+  ];
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     
-    // Look for Revolut patterns: "MMM DD, YYYY" or "DD MMM YYYY"
+    // Look for Revolut date patterns: "DD MMM YYYY" or "MMM DD, YYYY"
     const datePatterns = [
       /\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})\b/i,
       /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})\b/i,
@@ -157,12 +147,12 @@ function parseRevolutFormat(lines: string[]): ParsedTransaction[] {
         if (pattern === datePatterns[0]) {
           // DD MMM YYYY
           const day = match[1].padStart(2, '0');
-          const month = monthMap[match[2].toLowerCase()] || '01';
+          const month = monthMap[match[2].toLowerCase().substring(0, 3)] || '01';
           const year = match[3];
           normalizedDate = `${year}-${month}-${day}`;
         } else {
           // MMM DD, YYYY
-          const month = monthMap[match[1].toLowerCase()] || '01';
+          const month = monthMap[match[1].toLowerCase().substring(0, 3)] || '01';
           const day = match[2].padStart(2, '0');
           const year = match[3];
           normalizedDate = `${year}-${month}-${day}`;
@@ -173,136 +163,76 @@ function parseRevolutFormat(lines: string[]): ParsedTransaction[] {
     
     if (!dateMatch || !normalizedDate) continue;
     
-    // Look for amounts in current and next few lines
+    // Look for description and amount in current and next few lines
     let amount = null;
     let description = '';
-    let isMoneyOut = false;
+    let fullContext = '';
     
-    for (let j = 0; j <= 2 && i + j < lines.length; j++) {
+    for (let j = 0; j <= 3 && i + j < lines.length; j++) {
       const checkLine = lines[i + j].trim();
-      const fullLine = lines[i + j]; // Keep original spacing for column detection
+      fullContext += ' ' + checkLine;
       
-      // Match amounts: "123.45 RON", "1,234.56 EUR", etc. (no minus sign in the text)
-      const amountMatches = [...checkLine.matchAll(/(\d+(?:,\d{3})*\.\d{2})\s*(?:RON|EUR|USD|GBP|CHF|PLN|CZK|HUF)/gi)];
+      // Match amounts: "123.45 RON", "1,234.56 EUR", etc.
+      const amountMatch = checkLine.match(/(\d+(?:,\d{3})*\.\d{2})\s*(?:RON|EUR|USD|GBP|CHF|PLN|CZK|HUF)/i);
       
-      if (amountMatches.length > 0) {
-        // If we have TWO amounts on the same line, they represent Money Out and Money In
-        if (amountMatches.length === 2 && moneyOutColumn !== -1 && moneyInColumn !== -1) {
-          // Find position of each amount in the full line (with spacing)
-          const firstPos = fullLine.indexOf(amountMatches[0][0]);
-          const secondPos = fullLine.indexOf(amountMatches[1][0]);
-          
-          console.log(`Two amounts found: "${amountMatches[0][0]}" at pos ${firstPos}, "${amountMatches[1][0]}" at pos ${secondPos}`);
-          console.log(`Columns: Money Out at ${moneyOutColumn}, Money In at ${moneyInColumn}`);
-          
-          // The amount closer to the "Money out" column is a debit (negative)
-          // The amount closer to the "Money in" column is a credit (positive)
-          const firstDistToOut = Math.abs(firstPos - moneyOutColumn);
-          const firstDistToIn = Math.abs(firstPos - moneyInColumn);
-          const secondDistToOut = Math.abs(secondPos - moneyOutColumn);
-          const secondDistToIn = Math.abs(secondPos - moneyInColumn);
-          
-          let selectedMatch;
-          
-          // Determine which amount to use based on which column has a value
-          if (firstDistToOut < firstDistToIn && secondDistToIn < secondDistToOut) {
-            // First is money out, second is money in - use the one that's not zero
-            const firstVal = parseFloat(amountMatches[0][1].replace(/,/g, ''));
-            const secondVal = parseFloat(amountMatches[1][1].replace(/,/g, ''));
-            
-            if (firstVal > 0 && secondVal === 0) {
-              selectedMatch = amountMatches[0];
-              isMoneyOut = true;
-            } else if (secondVal > 0 && firstVal === 0) {
-              selectedMatch = amountMatches[1];
-              isMoneyOut = false;
-            } else {
-              // Both have values or both are zero - use money out
-              selectedMatch = amountMatches[0];
-              isMoneyOut = true;
-            }
-          } else if (secondDistToOut < secondDistToIn && firstDistToIn < firstDistToOut) {
-            // Second is money out, first is money in
-            const firstVal = parseFloat(amountMatches[0][1].replace(/,/g, ''));
-            const secondVal = parseFloat(amountMatches[1][1].replace(/,/g, ''));
-            
-            if (secondVal > 0 && firstVal === 0) {
-              selectedMatch = amountMatches[1];
-              isMoneyOut = true;
-            } else if (firstVal > 0 && secondVal === 0) {
-              selectedMatch = amountMatches[0];
-              isMoneyOut = false;
-            } else {
-              selectedMatch = amountMatches[1];
-              isMoneyOut = true;
-            }
-          } else {
-            // Fallback: use first amount and guess based on position
-            selectedMatch = amountMatches[0];
-            isMoneyOut = firstDistToOut < firstDistToIn;
-          }
-          
-          const amountStr = selectedMatch[1].replace(/,/g, '');
-          amount = parseFloat(amountStr);
-          
-          console.log(`Selected amount: ${amount}, isMoneyOut: ${isMoneyOut}`);
-          
-          if (isMoneyOut) {
-            amount = -Math.abs(amount); // Money out is negative
-          } else {
-            amount = Math.abs(amount); // Money in is positive
-          }
-        } else if (amountMatches.length === 1) {
-          // Single amount - need to determine if it's in the "money out" or "money in" column
-          const amountMatch = amountMatches[0];
-          const amountPos = fullLine.indexOf(amountMatch[0]);
-          
-          const amountStr = amountMatch[1].replace(/,/g, '');
-          amount = parseFloat(amountStr);
-          
-          // Determine which column this amount is in
-          if (moneyOutColumn !== -1 && moneyInColumn !== -1) {
-            const distToOut = Math.abs(amountPos - moneyOutColumn);
-            const distToIn = Math.abs(amountPos - moneyInColumn);
-            
-            if (distToOut < distToIn) {
-              amount = -Math.abs(amount); // Money out column = negative
-              console.log(`Single amount ${amount} in Money Out column`);
-            } else {
-              amount = Math.abs(amount); // Money in column = positive
-              console.log(`Single amount ${amount} in Money In column`);
-            }
-          } else {
-            // Can't determine columns - use keywords
-            const lineText = checkLine.toLowerCase();
-            if (lineText.includes('top up') || lineText.includes('topup') || 
-                lineText.includes('deposit') || lineText.includes('received') ||
-                lineText.includes('from ')) {
-              amount = Math.abs(amount);
-            } else {
-              amount = -Math.abs(amount);
-            }
-          }
-        }
+      if (amountMatch && amount === null) {
+        const amountStr = amountMatch[1].replace(/,/g, '');
+        amount = parseFloat(amountStr);
         
-        // Extract description (text between date and amount)
+        // Extract description (text between date and amount, or from previous lines)
         if (j === 0) {
-          const amountIndex = checkLine.indexOf(amountMatches[0][0]);
+          const amountIndex = checkLine.indexOf(amountMatch[0]);
           const dateIndex = checkLine.indexOf(dateMatch[0]);
-          if (dateIndex < amountIndex) {
+          if (dateIndex !== -1 && dateIndex < amountIndex) {
             description = checkLine.substring(dateIndex + dateMatch[0].length, amountIndex).trim();
           } else {
-            description = checkLine.replace(dateMatch[0], '').replace(amountMatches[0][0], '').trim();
+            description = checkLine.replace(dateMatch[0], '').replace(amountMatch[0], '').trim();
           }
         } else {
-          // Description is on previous line(s)
-          description = lines.slice(i, i + j).map(l => l.replace(dateMatch[0], '').trim()).join(' ').trim();
+          // Collect description from previous lines
+          for (let k = i; k < i + j; k++) {
+            const prevLine = lines[k].trim();
+            const cleanedLine = prevLine.replace(dateMatch[0], '').trim();
+            if (cleanedLine) {
+              description += ' ' + cleanedLine;
+            }
+          }
+          description = description.trim();
         }
         break;
       }
     }
     
-    if (amount !== null && description) {
+    if (amount !== null && amount > 0) {
+      // Determine transaction type based on description keywords
+      const lowerDescription = fullContext.toLowerCase();
+      let isMoneyIn = false;
+      
+      // Check for money IN keywords
+      for (const keyword of moneyInKeywords) {
+        if (lowerDescription.includes(keyword)) {
+          isMoneyIn = true;
+          break;
+        }
+      }
+      
+      // Check for money OUT keywords (only if not already identified as money in)
+      if (!isMoneyIn) {
+        for (const keyword of moneyOutKeywords) {
+          if (lowerDescription.includes(keyword)) {
+            isMoneyIn = false;
+            break;
+          }
+        }
+      }
+      
+      // Apply the sign
+      if (!isMoneyIn) {
+        amount = -Math.abs(amount); // Money out is negative
+      } else {
+        amount = Math.abs(amount); // Money in is positive
+      }
+      
       const provider = extractProvider(description);
       transactions.push({
         date: normalizedDate,

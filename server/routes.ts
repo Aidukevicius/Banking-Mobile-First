@@ -339,8 +339,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deleted = await storage.clearAllTransactions(req.userId!);
       
       // Reset all monthly data
-      const monthlyData = await storage.getAllMonthlyData(req.userId!);
-      for (const data of monthlyData) {
+      const monthlyDataList = await storage.getAllMonthlyData(req.userId!);
+      for (const data of monthlyDataList) {
         await storage.createOrUpdateMonthlyData({
           userId: req.userId!,
           monthYear: data.monthYear,
@@ -353,6 +353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ success: true, deleted });
     } catch (error: any) {
+      console.error("Clear all transactions error:", error);
       res.status(500).json({ error: error.message });
     }
   });

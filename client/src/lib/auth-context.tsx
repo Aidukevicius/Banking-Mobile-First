@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           description: error.error || "Could not create account",
           variant: "destructive",
         });
-        throw new Error(error.error || "Registration failed");
+        return;
       }
 
       const data = await response.json();
@@ -123,8 +123,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: `Welcome, ${data.user.username}`,
       });
     } catch (error) {
-      // Error already handled above, just prevent further execution
       console.error("Registration error:", error);
+      toast({
+        title: "Registration failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

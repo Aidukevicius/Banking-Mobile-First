@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { getAuthToken } from "@/lib/api";
+import type { Transaction, Category, UserSettings } from "@shared/schema";
 
 export default function Transactions() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,8 +28,13 @@ export default function Transactions() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
-  const [editedTransaction, setEditedTransaction] = useState<any>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [editedTransaction, setEditedTransaction] = useState<{
+    id: string;
+    amount: string;
+    categoryId: string;
+    type: string;
+  } | null>(null);
   const [newTransaction, setNewTransaction] = useState({
     date: new Date().toISOString().split('T')[0],
     provider: "",
@@ -38,15 +44,15 @@ export default function Transactions() {
   });
   const { toast } = useToast();
 
-  const { data: transactions = [], isLoading } = useQuery({
+  const { data: transactions = [], isLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions"],
   });
 
-  const { data: allCategories = [] } = useQuery({
+  const { data: allCategories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
   });
 
@@ -133,7 +139,15 @@ export default function Transactions() {
   });
 
   const createTransactionMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/transactions", data),
+    mutationFn: (data: {
+      type: string;
+      date: string;
+      provider: string;
+      description: string;
+      amount: string;
+      categoryId: string | null;
+      monthYear: string;
+    }) => apiRequest("POST", "/api/transactions", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/monthly-data"] });
@@ -164,12 +178,12 @@ export default function Transactions() {
     },
   });
 
-  const filteredTransactions = transactions.filter((t: any) =>
-    t.provider.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTransactions = transactions.filter((t) =>
+    (t.provider?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (t.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
-  const groupedTransactions = filteredTransactions.reduce((acc: any, transaction: any) => {
+  const groupedTransactions = filteredTransactions.reduce((acc: Record<string, Transaction[]>, transaction) => {
     const date = new Date(transaction.date).toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
@@ -303,7 +317,7 @@ export default function Transactions() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {Object.entries(groupedTransactions).map(([date, dateTransactions]: [string, any]) => (
+          {Object.entries(groupedTransactions).map(([date, dateTransactions]) => (
             <div key={date}>
               <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-2 mb-3 z-10">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -311,8 +325,8 @@ export default function Transactions() {
                 </h3>
               </div>
               <div className="space-y-3">
-                {dateTransactions.map((transaction: any) => {
-                  const category = allCategories.find((c: any) => c.id === transaction.categoryId);
+                {dateTransactions.map((transaction) => {
+                  const category = allCategories.find((c) => c.id === transaction.categoryId);
                   return (
                     <Card
                       key={transaction.id}
@@ -328,13 +342,22 @@ export default function Transactions() {
                           <p className="text-sm text-muted-foreground">{transaction.description}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                          {transaction.categoryId ? (
-                            <CategoryBadge categoryId={transaction.categoryId} categories={allCategories} />
-                          ) : (
-                            <Badge variant="outline" className="text-muted-foreground">
-                              Uncategorized
-                            </Badge>
-                          )}
+                          <div 
+                            className="cursor-pointer" 
+                            onClick={() => {
+                              setSelectedTransaction(transaction);
+                              setCategoryDialogOpen(true);
+                            }}
+                            data-testid={`badge-category-${transaction.id}`}
+                          >
+                            {transaction.categoryId ? (
+                              <CategoryBadge categoryId={transaction.categoryId} categories={allCategories} />
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground hover:bg-muted">
+                                Uncategorized
+                              </Badge>
+                            )}
+                          </div>
                           <p className={`text-lg font-semibold tabular-nums whitespace-nowrap ${
                             transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
                           }`}>
@@ -355,6 +378,7 @@ export default function Transactions() {
                                 });
                                 setEditDialogOpen(true);
                               }}
+                              data-testid={`button-edit-${transaction.id}`}
                             >
                               <Edit2 className="w-4 h-4" />
                             </Button>
@@ -366,6 +390,7 @@ export default function Transactions() {
                                 setSelectedTransaction(transaction);
                                 setDeleteDialogOpen(true);
                               }}
+                              data-testid={`button-delete-${transaction.id}`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -513,12 +538,12 @@ export default function Transactions() {
               >
                 <option value="">None</option>
                 <optgroup label="Expense Categories">
-                  {allCategories.filter((cat: any) => cat.type === 'expense').map((cat: any) => (
+                  {allCategories.filter((cat) => cat.type === 'expense').map((cat) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </optgroup>
                 <optgroup label="Income Categories">
-                  {allCategories.filter((cat: any) => cat.type === 'income').map((cat: any) => (
+                  {allCategories.filter((cat) => cat.type === 'income').map((cat) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </optgroup>
@@ -565,7 +590,7 @@ export default function Transactions() {
           <div className="grid grid-cols-2 gap-2 py-4">
             {(() => {
               const transactionType = selectedTransaction?.type || 'expense';
-              const filteredCategories = allCategories.filter((cat: any) => cat.type === transactionType);
+              const filteredCategories = allCategories.filter((cat) => cat.type === transactionType);
               
               if (filteredCategories.length === 0) {
                 return (
@@ -575,7 +600,7 @@ export default function Transactions() {
                 );
               }
               
-              return filteredCategories.map((cat: any) => (
+              return filteredCategories.map((cat) => (
                 <Button
                   key={cat.id}
                   variant={selectedTransaction?.categoryId === cat.id ? "default" : "outline"}
@@ -592,13 +617,13 @@ export default function Transactions() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Transaction Dialog */}
+      {/* Edit Transaction Dialog - Amount Only */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Transaction</DialogTitle>
+            <DialogTitle>Edit Amount</DialogTitle>
             <DialogDescription>
-              Update the amount and category for this transaction.
+              Update the transaction amount. To change the category, click on the category badge.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -610,27 +635,14 @@ export default function Transactions() {
                 step="0.01"
                 placeholder="0.00"
                 value={editedTransaction?.amount || ""}
-                onChange={(e) => setEditedTransaction({ ...editedTransaction, amount: e.target.value })}
+                onChange={(e) => {
+                  if (editedTransaction) {
+                    setEditedTransaction({ ...editedTransaction, amount: e.target.value });
+                  }
+                }}
                 className="text-right tabular-nums"
+                data-testid="input-edit-amount"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-category">Category</Label>
-              <select
-                id="edit-category"
-                value={editedTransaction?.categoryId || ""}
-                onChange={(e) => setEditedTransaction({ ...editedTransaction, categoryId: e.target.value })}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background"
-              >
-                <option value="">None</option>
-                <optgroup label={editedTransaction?.type === 'income' ? "Income Categories" : "Expense Categories"}>
-                  {allCategories
-                    .filter((cat: any) => cat.type === editedTransaction?.type)
-                    .map((cat: any) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                </optgroup>
-              </select>
             </div>
           </div>
           <div className="flex gap-2">
@@ -638,6 +650,7 @@ export default function Transactions() {
               variant="outline"
               onClick={() => setEditDialogOpen(false)}
               className="flex-1"
+              data-testid="button-cancel-edit"
             >
               Cancel
             </Button>
@@ -645,6 +658,7 @@ export default function Transactions() {
               onClick={handleEditTransaction}
               disabled={!editedTransaction?.amount || updateTransactionDetailsMutation.isPending}
               className="flex-1"
+              data-testid="button-save-edit"
             >
               Save Changes
             </Button>

@@ -1,8 +1,15 @@
 # Finance Tracker
 
-A comprehensive full-stack personal finance management application built with React, Express, and PostgreSQL. Track your expenses, manage budgets, monitor investments, and gain insights into your spending habits.
+A comprehensive full-stack personal finance management application built with React, TypeScript, Express, and PostgreSQL. Track expenses, manage budgets, monitor investments, and gain insights into your spending habits with intelligent PDF bank statement parsing and automated transaction categorization.
 
-## Environment Setup
+## Quick Start
+
+### Prerequisites
+- Node.js 20.x or higher
+- PostgreSQL database (local or hosted like Neon, Supabase, etc.)
+- Brevo account for sending password reset emails ([Sign up free](https://www.brevo.com/))
+
+### Environment Setup
 
 1. Copy `.env.example` to `.env`:
    ```bash
@@ -10,22 +17,26 @@ A comprehensive full-stack personal finance management application built with Re
    ```
 
 2. Fill in your actual credentials in `.env`:
-   - **SMTP_USER**: Your Brevo/Sendinblue email
-   - **SMTP_PASS**: Your Brevo SMTP API key
-   - **FROM_EMAIL**: Email address for outgoing emails
-   - **FROM_NAME**: Display name for emails
-   - **DATABASE_URL**: PostgreSQL connection string
-   - **JWT_SECRET**: Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+   - **BREVO_API_KEY**: Your Brevo API key from [https://app.brevo.com/settings/keys/api](https://app.brevo.com/settings/keys/api)
+   - **FROM_EMAIL**: Email address for outgoing emails (must be verified in Brevo)
+   - **FROM_NAME**: Display name for emails (e.g., "Finance Tracker")
+   - **DATABASE_URL**: PostgreSQL connection string (format: `postgresql://user:password@host:port/database`)
+   - **JWT_SECRET**: Generate securely with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+   - **BASE_URL**: Your application URL for email links (e.g., `http://localhost:5000` for local development)
+   - **PORT**: Server port (default: 5000)
+   - **NODE_ENV**: Environment (development/production)
 
-3. Never commit the `.env` file to version control!
+3. **Never commit the `.env` file to version control!**
 
 ## Features
 
 ### 💰 Transaction Management
 - **Manual Entry**: Add transactions with date, description, provider, amount, and category
-- **PDF Import**: Upload bank statement PDFs to automatically extract and import transactions
-- **Smart Categorization**: Auto-categorize transactions based on learned provider patterns
-- **Bulk Operations**: Edit and delete multiple transactions efficiently
+- **PDF Import**: Upload bank statement PDFs to automatically extract and import transactions (using regex-based parsing)
+- **Smart Categorization**: Machine learning system that remembers provider-to-category mappings
+- **Auto-Categorization**: Future transactions from known providers are automatically categorized
+- **Bulk Operations**: Edit multiple transactions and clear all transactions with confirmation dialogs
+- **Search & Filter**: Real-time search across descriptions and providers
 
 ### 📊 Budget & Category Management
 - **Custom Categories**: Create unlimited income and expense categories with custom icons and colors
@@ -60,10 +71,13 @@ A comprehensive full-stack personal finance management application built with Re
 - **User Preferences**: Personalized settings saved per user account
 
 ### 🔐 Authentication & Security
-- **User Accounts**: Secure registration and login
-- **Password Hashing**: Industry-standard bcrypt password encryption
+- **User Accounts**: Secure registration and login with username/password
+- **Password Hashing**: Industry-standard bcrypt password encryption (salt rounds: 10)
 - **Session Management**: JWT token-based authentication
+- **Password Reset**: Email-based password reset with secure tokens (SHA-256 hashed, 1-hour expiration)
+- **Email Integration**: Transactional emails via Brevo API
 - **Data Isolation**: Each user's data is completely separate and private
+- **Password Requirements**: Minimum 8 characters with uppercase, lowercase, and numbers
 
 ## Tech Stack
 
@@ -98,35 +112,48 @@ A comprehensive full-stack personal finance management application built with Re
 
 ### Installation
 
-1. Clone the repository and install dependencies:
-```bash
-npm install
-```
+1. Clone the repository:
+   ```bash
+   git clone <your-repo-url>
+   cd finance-tracker
+   ```
 
-2. Set up environment variables:
-Create a `.env` file with your database connection string:
-```
-DATABASE_URL=postgresql://user:password@host/database
-```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-3. Push database schema:
-```bash
-npm run db:push
-```
+3. Set up environment variables (see Environment Setup above)
 
-4. Start the development server:
-```bash
-npm run dev
-```
+4. Initialize the database:
+   ```bash
+   npm run db:push
+   ```
+   This creates all necessary tables in your PostgreSQL database.
 
-The application will be available at `http://localhost:5000`
+5. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+6. Open your browser to `http://localhost:5000`
 
 ### Production Build
 
-```bash
-npm run build
-npm start
-```
+1. Build the application:
+   ```bash
+   npm run build
+   ```
+
+2. Start the production server:
+   ```bash
+   npm start
+   ```
+
+The build command:
+- Bundles the React frontend with Vite
+- Bundles the Express backend with esbuild
+- Outputs everything to the `dist/` directory
 
 ## Usage Guide
 
@@ -173,47 +200,65 @@ npm start
 
 ## API Endpoints
 
+All protected routes require the `Authorization: Bearer <JWT_TOKEN>` header.
+
 ### Authentication
 - `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user
+- `POST /api/auth/login` - Login and receive JWT token
+- `GET /api/auth/me` - Get current authenticated user
+- `POST /api/auth/forgot-password` - Request password reset email
+- `POST /api/auth/reset-password` - Reset password with token
 
 ### Transactions
-- `GET /api/transactions` - Get all transactions (optionally filter by month)
-- `POST /api/transactions` - Create transaction
-- `PUT /api/transactions/:id` - Update transaction
+- `GET /api/transactions` - Get all user transactions (optionally filter by month with `?month=YYYY-MM`)
+- `POST /api/transactions` - Create new transaction
+- `PUT /api/transactions/:id` - Update existing transaction
 - `DELETE /api/transactions/:id` - Delete transaction
-- `POST /api/transactions/upload-pdf` - Upload and parse PDF statement
+- `DELETE /api/transactions/clear-all` - Delete all user transactions
+- `POST /api/transactions/upload-pdf` - Upload and parse PDF bank statement (multipart/form-data)
 
 ### Categories
-- `GET /api/categories` - Get all categories
-- `POST /api/categories` - Create category
-- `PUT /api/categories/:id` - Update category
+- `GET /api/categories` - Get all user categories
+- `POST /api/categories` - Create new category
+- `PUT /api/categories/:id` - Update existing category
 - `DELETE /api/categories/:id` - Delete category
 
-### Portfolio
-- `GET /api/portfolio` - Get current portfolio values
-- `PUT /api/portfolio/savings` - Update savings
-- `PUT /api/portfolio/investments` - Update investments
+### Savings & Investments (Portfolio)
+- `GET /api/savings-pots` - Get all savings/investment pots (filter by `?type=savings` or `?type=investments`)
+- `POST /api/savings-pots` - Create new pot
+- `PUT /api/savings-pots/:id` - Update pot amount
+- `DELETE /api/savings-pots/:id` - Delete pot
 
 ### Monthly Data
-- `GET /api/monthly-data` - Get all monthly data
-- `GET /api/monthly-data/:monthYear` - Get specific month data
+- `GET /api/monthly-data` - Get all monthly summaries
+- `GET /api/monthly-data/:monthYear` - Get specific month data (format: YYYY-MM)
 - `PUT /api/monthly-data/:monthYear` - Update monthly data
 
 ### Settings
-- `GET /api/settings` - Get user settings
-- `PUT /api/settings` - Update user settings
+- `GET /api/settings` - Get user preferences
+- `PUT /api/settings` - Update user preferences (currency, theme)
 
 ## Database Schema
 
+The application uses PostgreSQL with the following tables:
+
 ### Tables
-- **users** - User accounts
-- **user_settings** - User preferences (currency, theme)
-- **categories** - Expense categories
-- **transactions** - Financial transactions
-- **category_mappings** - Provider-to-category learned mappings
+- **users** - User accounts with authentication
+  - `id` (uuid), `username`, `email`, `password` (hashed), `resetToken`, `resetTokenExpiry`, `createdAt`
+- **user_settings** - User preferences
+  - `userId` (FK), `currency`, `theme`
+- **categories** - Income and expense categories
+  - `id` (uuid), `userId` (FK), `type` (income/expense), `name`, `icon`, `color`, `budgetLimit`, `createdAt`
+- **transactions** - All financial transactions
+  - `id` (uuid), `userId` (FK), `type` (income/expense), `date`, `description`, `provider`, `amount`, `categoryId` (FK), `monthYear`, `createdAt`
+- **category_mappings** - Provider-to-category learning system
+  - `id` (uuid), `userId` (FK), `provider`, `categoryId` (FK), `createdAt`
+- **savings_pots** - Savings and investment tracking
+  - `id` (uuid), `userId` (FK), `name`, `amount`, `type` (savings/investments), `createdAt`, `updatedAt`
 - **monthly_data** - Monthly financial summaries
+  - `id` (uuid), `userId` (FK), `monthYear`, `income`, `expenses`, `savings`, `investments`, `updatedAt`
+
+All tables use UUID primary keys and cascade delete on user removal.
 
 ## Features in Detail
 
@@ -232,19 +277,62 @@ The application is fully responsive and works seamlessly on:
 ### Dark Mode Support
 Toggle between light and dark themes for comfortable viewing in any lighting condition.
 
-## Testing
+## Deployment
 
-Run the included test suite:
+### Environment Variables for Production
+
+Ensure these are set in your production environment:
+- `DATABASE_URL` - Production PostgreSQL connection string
+- `JWT_SECRET` - Unique secret for JWT signing
+- `BREVO_API_KEY` - Brevo API key for transactional emails
+- `FROM_EMAIL` - Verified sender email address
+- `FROM_NAME` - Email sender name
+- `BASE_URL` - Your production domain (e.g., `https://yourapp.com`)
+- `NODE_ENV=production`
+- `PORT` - Port to run on (default: 5000)
+
+### Build for Production
+
 ```bash
-node test-api.js
+# Install dependencies
+npm install
+
+# Push database schema
+npm run db:push
+
+# Build the application
+npm run build
+
+# Start the server
+npm start
 ```
 
-This tests all major API endpoints including:
-- User registration and authentication
-- Category management
-- Transaction CRUD operations
-- Portfolio updates
-- Settings management
+### Deployment Platforms
+
+This application can be deployed to:
+- **Vercel**: Use Node.js runtime, set build command to `npm run build`, start command to `npm start`
+- **Railway**: Connect your repo, Railway auto-detects configuration
+- **Render**: Web service with Node environment
+- **DigitalOcean App Platform**: Node.js app with PostgreSQL database
+- **AWS/GCP/Azure**: Use any VPS with Node.js and PostgreSQL
+- **Heroku**: Standard Node.js deployment with Postgres add-on
+
+### Database Setup
+
+For production, use a managed PostgreSQL service:
+- [Neon](https://neon.tech/) - Serverless Postgres (recommended)
+- [Supabase](https://supabase.com/) - Open source Firebase alternative
+- [Railway](https://railway.app/) - Postgres included
+- [Render](https://render.com/) - Managed Postgres
+- AWS RDS, Google Cloud SQL, Azure Database for PostgreSQL
+
+## Testing
+
+The application includes comprehensive data-testid attributes for automated testing. All interactive elements and data displays include unique test IDs following this pattern:
+- Interactive elements: `button-{action}`, `input-{field}`, `select-{field}`
+- Display elements: `text-{content}`, `card-{type}-{id}`
+
+See `TESTING_CHECKLIST.md` for a complete testing guide covering all 150+ features and interactions.
 
 ## Project Structure
 

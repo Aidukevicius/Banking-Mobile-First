@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useMemo } from "react";
+
+import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface User {
@@ -17,14 +18,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("token"); // Changed from "auth_token" to "token"
+    const storedToken = localStorage.getItem("token");
     if (storedToken) {
       setToken(storedToken);
       fetchCurrentUser(storedToken);
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = await response.json();
         setUser(userData);
       } else {
-        localStorage.removeItem("token"); // Changed from "auth_token" to "token"
+        localStorage.removeItem("token");
         setToken(null);
       }
     } catch (error) {
@@ -69,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           description: error.error || "Invalid credentials",
           variant: "destructive",
         });
-        return; // Don't throw, just return early
+        return;
       }
 
       const data = await response.json();
@@ -77,7 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(data.token);
       localStorage.setItem("token", data.token);
       
-      // Clear all cached data to ensure fresh fetch for this user
       const module = await import("@/lib/queryClient");
       module.queryClient.clear();
 
@@ -118,7 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(data.token);
       localStorage.setItem("token", data.token);
       
-      // Clear all cached data for fresh start
       const module = await import("@/lib/queryClient");
       module.queryClient.clear();
 
@@ -141,7 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     localStorage.removeItem("token");
     
-    // Clear all React Query cache to ensure no data persists
     import("@/lib/queryClient").then(({ queryClient }) => {
       queryClient.clear();
     });
@@ -164,10 +162,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useAuth() {
+// Separate the hook export to prevent Fast Refresh issues
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
-}
+};

@@ -57,7 +57,6 @@ export const queryClient = new QueryClient({
         const token = localStorage.getItem("token");
         
         if (!token) {
-          window.location.href = "/auth";
           throw new Error("No authentication token");
         }
         
@@ -87,7 +86,6 @@ export const queryClient = new QueryClient({
         if (!res.ok) {
           if (res.status === 401) {
             localStorage.removeItem("token");
-            window.location.href = "/auth";
             throw new Error("Unauthorized");
           }
           if (res.status >= 500) {
@@ -99,9 +97,9 @@ export const queryClient = new QueryClient({
 
         return res.json();
       },
-      staleTime: 1000 * 60 * 5, // 5 minutes - data doesn't need to be fresh all the time
+      staleTime: 1000 * 60 * 5,
       retry: false,
-      refetchOnWindowFocus: false, // Disable to prevent constant reconnections
+      refetchOnWindowFocus: false,
     },
     mutations: {
       retry: false,

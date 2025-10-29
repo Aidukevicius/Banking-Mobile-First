@@ -311,29 +311,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/transactions/:id", authMiddleware, async (req: AuthRequest, res) => {
-    try {
-      const { id } = req.params;
-      // Get transaction before deleting to update monthly expenses
-      const transactions = await storage.getTransactions(req.userId!);
-      const transaction = transactions.find(t => t.id === id);
-      
-      const deleted = await storage.deleteTransaction(id, req.userId!);
-      if (!deleted) {
-        return res.status(404).json({ error: "Transaction not found" });
-      }
-      
-      // Update monthly expenses if transaction was found
-      if (transaction) {
-        await updateMonthlyData(req.userId!, transaction.monthYear);
-      }
-      
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   app.delete("/api/transactions/clear-all", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const deleted = await storage.clearAllTransactions(req.userId!);
@@ -354,6 +331,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, deleted });
     } catch (error: any) {
       console.error("Clear all transactions error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/transactions/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      // Get transaction before deleting to update monthly expenses
+      const transactions = await storage.getTransactions(req.userId!);
+      const transaction = transactions.find(t => t.id === id);
+      
+      const deleted = await storage.deleteTransaction(id, req.userId!);
+      if (!deleted) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+      
+      // Update monthly expenses if transaction was found
+      if (transaction) {
+        await updateMonthlyData(req.userId!, transaction.monthYear);
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });

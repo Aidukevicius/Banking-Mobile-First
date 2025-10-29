@@ -17,7 +17,22 @@ import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth";
 import ResetPasswordPage from "@/pages/reset-password";
 
-function Router() {
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="light">
+        <AuthProvider>
+          <TooltipProvider>
+            <AppRouter />
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
+
+function AppRouter() {
   const { user, login, register, isLoading } = useAuth();
 
   if (isLoading) {
@@ -32,7 +47,7 @@ function Router() {
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-background text-foreground">
       <Switch>
         <Route path="/reset-password" component={ResetPasswordPage} />
         {!user ? (
@@ -50,24 +65,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
       {user && <BottomNav />}
-    </>
-  );
-}
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light">
-        <AuthProvider>
-          <TooltipProvider>
-            <div className="min-h-screen bg-background text-foreground">
-              <Router />
-            </div>
-            <Toaster />
-          </TooltipProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    </div>
   );
 }
 

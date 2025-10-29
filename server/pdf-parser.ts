@@ -41,21 +41,71 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
       ...parseRevolutFormat(lines),   // Revolut-specific format
     ];
 
-    // Deduplicate and validate transactions
-    const seen = new Set<string>();
-    for (const transaction of parsedTransactions) {
-      // Validate date before adding
-      if (!isValidDate(transaction.date)) {
-        console.log('Skipping invalid date:', transaction.date, 'for transaction:', transaction.description);
-        continue;
+    // Filter out page headers and metadata
+    const filteredTransactions = parsedTransactions.filter(t => {
+      // Validate date
+      if (!isValidDate(t.date)) {
+        console.log('Skipping invalid date:', t.date, 'for transaction:', t.description);
+        return false;
       }
       
-      const key = `${transaction.date}-${Math.abs(transaction.amount)}-${transaction.description.substring(0, 20)}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        transactions.push(transaction);
+      const lowerDesc = t.description.toLowerCase();
+      
+      // Filter out common header/metadata patterns
+      const headerPatterns = [
+        'account transactions from',
+        'date description money',
+        'statement generated',
+        'page of',
+        'balance forward',
+        'beginning balance',
+        'ending balance',
+        'previous balance',
+        'current balance',
+        'total credits',
+        'total debits',
+        'generated on',
+        'revolut bank',
+        'registered address',
+      ];
+      
+      for (const pattern of headerPatterns) {
+        if (lowerDesc.includes(pattern)) {
+          console.log('Filtering out header/metadata:', t.description.substring(0, 50));
+          return false;
+        }
+      }
+      
+      // Filter out very long descriptions (likely metadata)
+      if (t.description.length > 150) {
+        console.log('Filtering out overly long description:', t.description.substring(0, 50));
+        return false;
+      }
+      
+      return true;
+    });
+
+    // Deduplicate by date and amount
+    const seen = new Map<string, ParsedTransaction>();
+    
+    for (const transaction of filteredTransactions) {
+      const key = `${transaction.date}-${Math.abs(transaction.amount).toFixed(2)}`;
+      
+      // If we've seen this date+amount combo, keep the one with the better description
+      if (seen.has(key)) {
+        const existing = seen.get(key)!;
+        
+        // Prefer shorter, cleaner descriptions
+        if (transaction.description.length < existing.description.length) {
+          seen.set(key, transaction);
+        }
+      } else {
+        seen.set(key, transaction);
       }
     }
+    
+    // Convert map values to array
+    transactions.push(...seen.values());
 
     console.log('Parsed transactions:', transactions.length);
     if (transactions.length > 0) {

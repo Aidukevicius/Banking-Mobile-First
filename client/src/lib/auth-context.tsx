@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           description: error.error || "Invalid credentials",
           variant: "destructive",
         });
-        throw new Error(error.error || "Login failed");
+        return; // Don't throw, just return early
       }
 
       const data = await response.json();
@@ -86,8 +86,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: `Logged in as ${data.user.username}`,
       });
     } catch (error) {
-      // Error already handled above, just prevent further execution
       console.error("Login error:", error);
+      toast({
+        title: "Login failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

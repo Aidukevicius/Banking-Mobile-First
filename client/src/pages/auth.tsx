@@ -26,12 +26,12 @@ export default function AuthPage({ onLogin, onRegister, isLoading }: AuthPagePro
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     onLogin(loginUsername, loginPassword);
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     if (registerPassword !== confirmPassword) {
       toast({

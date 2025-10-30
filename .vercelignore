@@ -1,0 +1,14 @@
+node_modules
+.env
+.env.local
+.local
+*.log
+.DS_Store
+fly.toml
+railway.json
+render.yaml
+Dockerfile
+.dockerignore
+test-*.js
+test-*.md
+TESTING_CHECKLIST.md

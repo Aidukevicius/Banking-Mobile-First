@@ -1,34 +1,16 @@
-
-import type { Request, Response } from 'express';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
+import { createApp } from '../dist/app.js';
 
 let appInstance: any = null;
 
-export default async function handler(req: Request, res: Response) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (!appInstance) {
-      // Import dependencies inline for serverless
-      const { registerRoutes } = await import('../server/routes');
-      const app = express();
-      
-      app.use(express.json({
-        verify: (req: any, _res, buf) => {
-          req.rawBody = buf;
-        }
-      }));
-      app.use(express.urlencoded({ extended: false }));
-
-      await registerRoutes(app);
-
-      app.use((err: any, _req: Request, res: Response, _next: any) => {
-        const status = err.status || err.statusCode || 500;
-        const message = err.message || "Internal Server Error";
-        res.status(status).json({ message });
-      });
-
+      const { app } = await createApp();
       appInstance = app;
     }
-    
+
     return appInstance(req, res);
   } catch (error) {
     console.error('Vercel handler error:', error);

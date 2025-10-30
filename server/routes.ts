@@ -372,8 +372,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mappings = await storage.getCategoryMappings(req.userId!);
       const mappingMap = new Map(mappings.map(m => [m.provider.toLowerCase(), m.categoryId]));
       
-      // Create transactions with auto-categorization
+      // Create transactions with auto-categorization and duplicate detection
       const createdTransactions = [];
+      const skippedDuplicates = [];
       const monthsToUpdate = new Set<string>();
       
       for (const parsed of parsedTransactions) {
@@ -384,13 +385,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Positive amounts = income, Negative amounts = expense
         const type = parsed.amount > 0 ? 'income' : 'expense';
         
+        // Check for duplicate transaction
+        const transactionDate = new Date(parsed.date);
+        const amountStr = parsed.amount.toString();
+        const duplicate = await storage.findDuplicateTransaction(
+          req.userId!,
+          transactionDate,
+          parsed.description,
+          parsed.provider,
+          amountStr
+        );
+        
+        if (duplicate) {
+          skippedDuplicates.push({
+            date: parsed.date,
+            description: parsed.description,
+            provider: parsed.provider,
+            amount: parsed.amount,
+          });
+          continue;
+        }
+        
         const transaction = await storage.createTransaction({
           userId: req.userId!,
           type,
-          date: new Date(parsed.date),
+          date: transactionDate,
           description: parsed.description,
           provider: parsed.provider,
-          amount: parsed.amount.toString(),
+          amount: amountStr,
           categoryId,
           monthYear,
         });
@@ -409,6 +431,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         categorized: createdTransactions.filter(t => t.categoryId !== null).length,
         uncategorized: createdTransactions.filter(t => t.categoryId === null).length,
         transactions: createdTransactions,
+        skipped: skippedDuplicates.length,
+        duplicates: skippedDuplicates,
       });
     } catch (error: any) {
       console.error("PDF upload error:", error);

@@ -47,6 +47,7 @@ export interface IStorage {
   // Transaction methods
   getTransactions(userId: string, monthYear?: string): Promise<Transaction[]>;
   getTransaction(id: string, userId: string): Promise<Transaction | undefined>;
+  findDuplicateTransaction(userId: string, date: Date, description: string, provider: string, amount: string): Promise<Transaction | undefined>;
   createTransaction(transaction: InsertTransaction & { userId: string }): Promise<Transaction>;
   updateTransaction(id: string, userId: string, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   deleteTransaction(id: string, userId: string): Promise<boolean>;
@@ -175,6 +176,22 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(transactions)
       .where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
+    return transaction || undefined;
+  }
+
+  async findDuplicateTransaction(userId: string, date: Date, description: string, provider: string, amount: string): Promise<Transaction | undefined> {
+    const [transaction] = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.date, date),
+          eq(transactions.description, description),
+          eq(transactions.provider, provider),
+          eq(transactions.amount, amount)
+        )
+      );
     return transaction || undefined;
   }
 

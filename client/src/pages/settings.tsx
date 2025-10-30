@@ -17,11 +17,13 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "lucide-react";
 import type { UserSettings } from "@shared/schema";
+import { useLocation } from "wouter";
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { logout, user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const { data: settings, isLoading } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
@@ -60,6 +62,7 @@ export default function Settings() {
 
   const handleLogout = () => {
     logout();
+    setLocation("/");
   };
 
   if (isLoading) {

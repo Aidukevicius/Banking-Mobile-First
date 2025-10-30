@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Wallet, TrendingUp, Plus, Trash2, Edit } from "lucide-react";
 import {
   Dialog,
@@ -54,6 +55,7 @@ export default function Portfolio() {
   const [editingPot, setEditingPot] = useState<any>(null);
   const [editAmount, setEditAmount] = useState("");
   const [currentType, setCurrentType] = useState<"savings" | "investments">("savings");
+  const [isStartingAmount, setIsStartingAmount] = useState(false);
   const { toast } = useToast();
 
   const { data: savingsPots = [], isLoading: savingsLoading } = useQuery<SavingsPot[]>({
@@ -123,6 +125,7 @@ export default function Portfolio() {
     setSelectedPotId("");
     setNewPotName("");
     setAdjustAmount("");
+    setIsStartingAmount(false);
     if (type === "savings") {
       setAddSavingsDialogOpen(true);
     } else {
@@ -170,20 +173,26 @@ export default function Portfolio() {
       // Wait a bit for queries to refetch
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      const updatedSavingsPots = queryClient.getQueryData(["/api/savings-pots", { type: "savings" }]) as any[] || [];
-      const updatedInvestmentPots = queryClient.getQueryData(["/api/savings-pots", { type: "investments" }]) as any[] || [];
+      // Only update monthly data if this is NOT a starting amount for a new pot
+      // or if this is adding to an existing pot
+      const shouldUpdateMonthlyData = selectedPotId !== "new" || !isStartingAmount;
       
-      const newTotalSavings = updatedSavingsPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
-      const newTotalInvestments = updatedInvestmentPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
+      if (shouldUpdateMonthlyData) {
+        const updatedSavingsPots = queryClient.getQueryData(["/api/savings-pots", { type: "savings" }]) as any[] || [];
+        const updatedInvestmentPots = queryClient.getQueryData(["/api/savings-pots", { type: "investments" }]) as any[] || [];
+        
+        const newTotalSavings = updatedSavingsPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
+        const newTotalInvestments = updatedInvestmentPots.reduce((sum: number, pot: any) => sum + parseFloat(pot.amount), 0);
 
-      // Update monthly data with new totals
-      await updateMonthlyDataMutation.mutateAsync({
-        monthYear: currentMonth,
-        data: {
-          savings: newTotalSavings.toString(),
-          investments: newTotalInvestments.toString(),
-        },
-      });
+        // Update monthly data with new totals
+        await updateMonthlyDataMutation.mutateAsync({
+          monthYear: currentMonth,
+          data: {
+            savings: newTotalSavings.toString(),
+            investments: newTotalInvestments.toString(),
+          },
+        });
+      }
 
       toast({ title: `${currentType === "savings" ? "Savings" : "Investment"} updated successfully` });
       setAddSavingsDialogOpen(false);
@@ -422,15 +431,31 @@ export default function Portfolio() {
             </div>
 
             {selectedPotId === "new" && (
-              <div className="space-y-2">
-                <Label htmlFor="new-pot-name">Pot Name</Label>
-                <Input
-                  id="new-pot-name"
-                  placeholder="e.g., Emergency Fund"
-                  value={newPotName}
-                  onChange={(e) => setNewPotName(e.target.value)}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="new-pot-name">Pot Name</Label>
+                  <Input
+                    id="new-pot-name"
+                    placeholder="e.g., Emergency Fund"
+                    value={newPotName}
+                    onChange={(e) => setNewPotName(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
+                  <Checkbox
+                    id="starting-amount-savings"
+                    checked={isStartingAmount}
+                    onCheckedChange={(checked) => setIsStartingAmount(checked as boolean)}
+                    data-testid="checkbox-starting-amount"
+                  />
+                  <Label
+                    htmlFor="starting-amount-savings"
+                    className="text-sm font-normal cursor-pointer leading-tight"
+                  >
+                    This is a starting amount (won't count toward this month's savings)
+                  </Label>
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
@@ -509,15 +534,31 @@ export default function Portfolio() {
             </div>
 
             {selectedPotId === "new" && (
-              <div className="space-y-2">
-                <Label htmlFor="new-investment-pot-name">Investment Name</Label>
-                <Input
-                  id="new-investment-pot-name"
-                  placeholder="e.g., Stocks Portfolio"
-                  value={newPotName}
-                  onChange={(e) => setNewPotName(e.target.value)}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="new-investment-pot-name">Investment Name</Label>
+                  <Input
+                    id="new-investment-pot-name"
+                    placeholder="e.g., Stocks Portfolio"
+                    value={newPotName}
+                    onChange={(e) => setNewPotName(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
+                  <Checkbox
+                    id="starting-amount-investments"
+                    checked={isStartingAmount}
+                    onCheckedChange={(checked) => setIsStartingAmount(checked as boolean)}
+                    data-testid="checkbox-starting-amount"
+                  />
+                  <Label
+                    htmlFor="starting-amount-investments"
+                    className="text-sm font-normal cursor-pointer leading-tight"
+                  >
+                    This is a starting amount (won't count toward this month's investments)
+                  </Label>
+                </div>
+              </>
             )}
 
             <div className="space-y-2">

@@ -48,12 +48,14 @@ Before deploying, click "Environment Variables" and add these:
 | `BREVO_API_KEY` | Your Brevo API key | From Step 2 |
 | `FROM_EMAIL` | Your verified email | The email you verified in Brevo |
 | `FROM_NAME` | `Finance Tracker` | Just type this |
-| `BASE_URL` | Leave empty for now | We'll add this in Step 6 |
+| `BASE_URL` | Your Vercel deployment URL | See Step 6 below |
 
 **Pro tip:** Generate JWT_SECRET by running this in your terminal:
 ```bash
 openssl rand -hex 32
 ```
+
+**Important:** You can leave `BASE_URL` empty for now and add it after deployment (see Step 6).
 
 ## Step 5: Deploy!
 1. Click "Deploy" button
@@ -63,7 +65,7 @@ openssl rand -hex 32
 ## Step 6: Update BASE_URL
 1. Copy your deployment URL (e.g., `https://finance-tracker-abc123.vercel.app`)
 2. Go to your Vercel project → Settings → Environment Variables
-3. Find `BASE_URL` and set it to your deployment URL
+3. Add or update `BASE_URL` with your deployment URL
 4. Click "Save"
 5. Go to Deployments tab
 6. Click "..." on the latest deployment → "Redeploy"
@@ -99,25 +101,59 @@ npm run db:push
 
 ## Troubleshooting
 
+### "500 Internal Server Error" on API calls
+**Common causes:**
+1. **Missing environment variables** - Check that ALL variables from Step 4 are set in Vercel
+2. **Database connection failed** - Verify `DATABASE_URL` is correct and database is accessible
+3. **Database schema not initialized** - Run `npm run db:push` (see Step 7)
+
+**How to debug:**
+1. Go to Vercel project → Deployments → Click latest deployment
+2. Click "Functions" tab to see serverless function logs
+3. Look for specific error messages
+4. Common fixes:
+   - Add missing environment variables
+   - Ensure `DATABASE_URL` ends with `?sslmode=require`
+   - Verify database schema is pushed
+
 ### "Database connection failed"
 - Check that `DATABASE_URL` ends with `?sslmode=require`
 - Verify your database is running (check Neon/Supabase dashboard)
 - Make sure you didn't include extra spaces in the connection string
+- For Neon: Use the "Pooled connection" string (better for serverless)
+- For Supabase: Use "Connection pooling" mode
 
 ### "Email not sending"
 - Verify your sender email in Brevo dashboard
 - Check that `BREVO_API_KEY` is correct
 - Ensure `FROM_EMAIL` matches your verified Brevo email
+- Check Brevo dashboard for email sending logs
 
 ### "Build failed"
 - Check the build logs in Vercel dashboard
 - Ensure all environment variables are set correctly
 - Try redeploying from the Deployments tab
+- Verify `package.json` scripts are correct
 
 ### "Page not found" or 404 errors
-- Check that the build completed successfully
-- Verify `outputDirectory` is set to `dist/public` in vercel.json
-- Redeploy from scratch if needed
+- Verify the build completed successfully
+- Check that `outputDirectory` is set to `dist/public` in vercel.json
+- Ensure frontend build succeeded (check build logs)
+- Try a fresh redeploy
+
+### "Cannot read property of undefined" errors
+- Usually means environment variables are missing
+- Go to Settings → Environment Variables
+- Verify all required variables are present
+- Redeploy after adding missing variables
+
+## View Logs & Debug
+To see what's happening on Vercel:
+1. Go to your Vercel project dashboard
+2. Click "Deployments" tab
+3. Click on the latest deployment
+4. Click "Functions" to see API logs
+5. Click "Build Logs" to see build output
 
 ## Custom Domain (Optional)
 1. Go to your Vercel project → Settings → Domains
@@ -135,4 +171,4 @@ Whenever you push to GitHub, Vercel automatically:
 
 ---
 
-**Need help?** Check the main README.md for detailed documentation and API reference.
+**Still having issues?** Check the main README.md for detailed documentation and API reference, or check Vercel's function logs for specific error messages.

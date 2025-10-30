@@ -31,6 +31,14 @@ This is a comprehensive finance tracking application. For full documentation, se
 - Backend: Express + PostgreSQL + Drizzle ORM
 - Email: Brevo API
 - Auth: JWT + bcrypt
+- Deployment: Optimized for Vercel (works with any Node.js host)
+
+### Deployment
+This app is fully configured for **one-click deployment to Vercel from GitHub**:
+- See **DEPLOY_TO_VERCEL.md** for step-by-step guide
+- Serverless-ready with proper handler (api/index.ts)
+- Works locally (npm run dev) and on Vercel (serverless functions)
+- All platform configs cleaned up (removed Fly.io, Railway, Render files)
 
 ### Recent Updates (October 30, 2025)
 - **CRITICAL FIX**: PDF parser creating duplicate transactions (9 from 5-transaction PDF)

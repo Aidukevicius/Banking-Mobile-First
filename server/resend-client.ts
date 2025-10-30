@@ -5,11 +5,20 @@ let apiInstance: brevo.TransactionalEmailsApi | null = null;
 
 function getApiInstance() {
   if (!apiInstance) {
+    const apiKey = process.env.BREVO_API_KEY;
+    if (!apiKey) {
+      throw new Error('BREVO_API_KEY environment variable is not set');
+    }
+    
     apiInstance = new brevo.TransactionalEmailsApi();
-    apiInstance.setApiKey(
-      brevo.TransactionalEmailsApiApiKeys.apiKey,
-      process.env.BREVO_API_KEY!
-    );
+    apiInstance.authentications = {
+      'api-key': {
+        type: 'apiKey',
+        in: 'header',
+        name: 'api-key',
+        apiKey: apiKey
+      }
+    };
   }
   return apiInstance;
 }

@@ -26,93 +26,122 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
     const transactions: ParsedTransaction[] = [];
     const lines = text.split('\n');
 
-    // Try multiple parsing strategies with more aggressive pattern matching
-    const parsedTransactions = [
-      ...parseFormatType1(lines),     // YYYY-MM-DD
-      ...parseFormatType2(lines),     // MM/DD/YYYY or DD/MM/YYYY
-      ...parseFormatType3(lines),     // DD-MMM-YYYY
-      ...parseFormatType4(lines),     // Multi-line tabular
-      ...parseFormatType5(lines),     // Complex bank statements
-      ...parseFormatType6(lines),     // European format
-      ...parseFormatType7(lines),     // CSV-like
-      ...parseFormatType8(lines),     // Aggressive line-by-line scan
-      ...parseFormatType9(lines),     // Multi-line context aware
-      ...parseFormatType10(text),     // Whole text regex patterns
-      ...parseRevolutFormat(lines),   // Revolut-specific format
+    // Try multiple parsing strategies, using each as fallback only if previous ones found nothing
+    // This prevents combining duplicate results from multiple parsers
+    const parsingStrategies = [
+      { name: 'Revolut', fn: () => parseRevolutFormat(lines) },
+      { name: 'Format1-YYYY-MM-DD', fn: () => parseFormatType1(lines) },
+      { name: 'Format2-MM/DD/YYYY', fn: () => parseFormatType2(lines) },
+      { name: 'Format3-DD-MMM-YYYY', fn: () => parseFormatType3(lines) },
+      { name: 'Format4-MultiLine', fn: () => parseFormatType4(lines) },
+      { name: 'Format5-Complex', fn: () => parseFormatType5(lines) },
+      { name: 'Format6-European', fn: () => parseFormatType6(lines) },
+      { name: 'Format7-CSV', fn: () => parseFormatType7(lines) },
+      { name: 'Format8-Aggressive', fn: () => parseFormatType8(lines) },
+      { name: 'Format9-ContextAware', fn: () => parseFormatType9(lines) },
+      { name: 'Format10-WholeText', fn: () => parseFormatType10(text) },
     ];
-
-    // Filter out page headers and metadata
-    const filteredTransactions = parsedTransactions.filter(t => {
-      // Validate date
-      if (!isValidDate(t.date)) {
-        console.log('Skipping invalid date:', t.date, 'for transaction:', t.description);
-        return false;
+    
+    let filteredTransactions: ParsedTransaction[] = [];
+    
+    // Try each parser until one successfully finds valid transactions after filtering
+    for (const strategy of parsingStrategies) {
+      const results = strategy.fn();
+      
+      if (results.length === 0) {
+        console.log(`${strategy.name}: found 0 raw transactions, trying next parser`);
+        continue;
       }
       
-      const lowerDesc = t.description.toLowerCase();
-      
-      // Filter out common header/metadata patterns
-      const headerPatterns = [
-        'account transactions from',
-        'date description money',
-        'statement generated',
-        'page of',
-        'balance forward',
-        'beginning balance',
-        'ending balance',
-        'previous balance',
-        'current balance',
-        'total credits',
-        'total debits',
-        'generated on',
-        'revolut bank',
-        'registered address',
-      ];
-      
-      for (const pattern of headerPatterns) {
-        if (lowerDesc.includes(pattern)) {
-          console.log('Filtering out header/metadata:', t.description.substring(0, 50));
+      // Filter out page headers and metadata for this parser's results
+      const validResults = results.filter(t => {
+        // Validate date
+        if (!isValidDate(t.date)) {
+          console.log('Skipping invalid date:', t.date, 'for transaction:', t.description);
           return false;
         }
-      }
-      
-      // Filter out very long descriptions (likely metadata)
-      if (t.description.length > 150) {
-        console.log('Filtering out overly long description:', t.description.substring(0, 50));
-        return false;
-      }
-      
-      return true;
-    });
-
-    // Deduplicate by date, amount, AND description similarity
-    const seen = new Map<string, ParsedTransaction>();
-    
-    for (const transaction of filteredTransactions) {
-      // Create a more specific key that includes part of the description
-      // This allows same amounts from different people on the same day
-      const descriptionKey = transaction.description
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '')
-        .substring(0, 20); // First 20 chars of cleaned description
-      
-      const key = `${transaction.date}-${Math.abs(transaction.amount).toFixed(2)}-${descriptionKey}`;
-      
-      // If we've seen this exact combo (same date, amount, and similar description)
-      if (seen.has(key)) {
-        const existing = seen.get(key)!;
         
-        // Prefer shorter, cleaner descriptions for true duplicates
-        if (transaction.description.length < existing.description.length) {
-          seen.set(key, transaction);
+        const lowerDesc = t.description.toLowerCase();
+        
+        // Filter out common header/metadata patterns
+        const headerPatterns = [
+          'account transactions from',
+          'date description money',
+          'statement generated',
+          'page of',
+          'balance forward',
+          'beginning balance',
+          'ending balance',
+          'previous balance',
+          'current balance',
+          'total credits',
+          'total debits',
+          'generated on',
+          'revolut bank',
+          'registered address',
+        ];
+        
+        for (const pattern of headerPatterns) {
+          if (lowerDesc.includes(pattern)) {
+            console.log('Filtering out header/metadata:', t.description.substring(0, 50));
+            return false;
+          }
         }
+        
+        // Filter out very long descriptions (likely metadata)
+        if (t.description.length > 150) {
+          console.log('Filtering out overly long description:', t.description.substring(0, 50));
+          return false;
+        }
+        
+        return true;
+      });
+      
+      // If this parser found valid transactions after filtering, use them
+      if (validResults.length > 0) {
+        console.log(`${strategy.name}: found ${results.length} raw, ${validResults.length} after filtering`);
+        
+        // Deduplicate by date, amount, AND description similarity
+        const seen = new Map<string, ParsedTransaction>();
+        
+        for (const transaction of validResults) {
+          // Create a more specific key that includes part of the description
+          // This allows same amounts from different people on the same day
+          const descriptionKey = transaction.description
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '')
+            .substring(0, 20); // First 20 chars of cleaned description
+          
+          const key = `${transaction.date}-${Math.abs(transaction.amount).toFixed(2)}-${descriptionKey}`;
+          
+          // If we've seen this exact combo (same date, amount, and similar description)
+          if (seen.has(key)) {
+            const existing = seen.get(key)!;
+            
+            // Prefer shorter, cleaner descriptions for true duplicates
+            if (transaction.description.length < existing.description.length) {
+              seen.set(key, transaction);
+            }
+          } else {
+            seen.set(key, transaction);
+          }
+        }
+        
+        // Convert map values to array
+        filteredTransactions = Array.from(seen.values());
+        console.log(`${strategy.name}: ${filteredTransactions.length} unique transactions after deduplication`);
+        break; // Stop trying other parsers
       } else {
-        seen.set(key, transaction);
+        console.log(`${strategy.name}: found ${results.length} raw but 0 after filtering, trying next parser`);
       }
     }
     
-    // Convert map values to array
-    transactions.push(...Array.from(seen.values()));
+    if (filteredTransactions.length === 0) {
+      console.log('No valid transactions found by any parser');
+    }
+
+    // Push final results to transactions array
+    transactions.push(...filteredTransactions);
 
     console.log('Parsed transactions:', transactions.length);
     if (transactions.length > 0) {

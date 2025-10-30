@@ -1,15 +1,11 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/node"
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/public",
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.js"
+      "dest": "/dist/index.js"
     },
     {
       "handle": "filesystem"
@@ -19,8 +15,9 @@
       "dest": "/dist/public/index.html"
     }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "outputDirectory": "dist/public"
+  "functions": {
+    "dist/index.js": {
+      "runtime": "nodejs20.x"
+    }
+  }
 }

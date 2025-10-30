@@ -63,19 +63,61 @@ npm run dev
 
 ## Production Deployment
 
+### Prerequisites
+- PostgreSQL database (Neon, Supabase, Railway, or any PostgreSQL provider)
+- Brevo account for email services
+- Node.js 20+
+
+### Environment Variables
+Create a `.env` file with these variables (see `.env.example`):
+```
+DATABASE_URL=postgresql://user:password@host:port/database
+JWT_SECRET=your-generated-jwt-secret
+BREVO_API_KEY=your-brevo-api-key
+FROM_EMAIL=noreply@yourapp.com
+FROM_NAME=Finance Tracker
+BASE_URL=https://yourapp.com
+PORT=5000
+NODE_ENV=production
+```
+
 ### Build
 ```bash
+npm install
 npm run build
 npm start
 ```
 
-### Vercel Deployment
-1. Connect your repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Configure build settings:
+### Platform-Specific Deployments
+
+#### Vercel
+1. Install Vercel CLI: `npm i -g vercel`
+2. Run `vercel` in project directory
+3. Set environment variables in Vercel dashboard
+4. Configure build settings:
    - Build Command: `npm run build`
    - Output Directory: `dist`
    - Install Command: `npm install`
+
+#### Render
+1. Connect your repository to Render
+2. Use the included `render.yaml` for configuration
+3. Add environment variables in Render dashboard
+
+#### Railway
+1. Connect your repository to Railway
+2. Add environment variables in Railway dashboard
+3. Deploy using the included `railway.json`
+
+#### Docker
+1. Build: `docker build -t finance-tracker .`
+2. Run: `docker run -p 5000:5000 --env-file .env finance-tracker`
+
+#### Fly.io
+1. Install Fly CLI: `curl -L https://fly.io/install.sh | sh`
+2. Run `fly launch` in project directory
+3. Set secrets: `fly secrets set KEY=value`
+4. Deploy: `fly deploy`
 
 ## API Endpoints
 

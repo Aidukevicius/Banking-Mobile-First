@@ -1,0 +1,24 @@
+
+services:
+  - type: web
+    name: finance-tracker
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: FROM_NAME
+        value: Finance Tracker
+      - key: BASE_URL
+        sync: false
+      - key: PORT
+        value: 5000

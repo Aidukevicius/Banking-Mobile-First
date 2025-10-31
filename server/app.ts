@@ -52,12 +52,13 @@ export async function createApp() {
 
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+  // Global error handler - ensures all errors return JSON
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('Global error handler:', err);
+    res.status(err.status || 500).json({
+      error: err.message || 'Internal server error',
+      message: err.message || 'An unexpected error occurred'
+    });
   });
 
   if (app.get("env") === "development") {

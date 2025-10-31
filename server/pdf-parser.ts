@@ -1,5 +1,4 @@
-
-import { PDFParse } from 'pdf-parse';
+import { extractText, getDocumentProxy } from 'unpdf';
 
 export interface ParsedTransaction {
   date: string;
@@ -9,17 +8,15 @@ export interface ParsedTransaction {
 }
 
 export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransaction[]> {
-  let parser: PDFParse | null = null;
-  
   try {
     console.log('Starting PDF parse, buffer size:', pdfBuffer.length);
     
-    // Create PDFParse instance with the buffer
-    parser = new PDFParse({ data: pdfBuffer });
-    
-    // Extract text from PDF
-    const result = await parser.getText();
+    // Convert buffer to Uint8Array and extract text using unpdf
+    const uint8Array = new Uint8Array(pdfBuffer);
+    const pdf = await getDocumentProxy(uint8Array);
+    const result = await extractText(pdf, { mergePages: true });
     const text = result.text;
+    
     console.log('PDF text extracted, length:', text.length);
     console.log('PDF text preview:', text.substring(0, 500));
 
@@ -152,10 +149,6 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
   } catch (error: any) {
     console.error('PDF parsing error:', error);
     throw new Error('Failed to parse PDF: ' + (error.message || error));
-  } finally {
-    if (parser) {
-      await parser.destroy();
-    }
   }
 }
 

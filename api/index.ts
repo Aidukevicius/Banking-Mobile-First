@@ -1,29 +1,24 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import serverless from 'serverless-http';
-import type { Express } from 'express';
 
-let handler: ReturnType<typeof serverless> | null = null;
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+let handler: any = null;
 
 export default async function vercelHandler(req: VercelRequest, res: VercelResponse) {
   try {
     if (!handler) {
-      // Dynamically import the app creation function
-      const { createApp } = await import('../dist/server/app.js');
+      // Dynamically import without serverless-http wrapper
+      const appModule = await import('../dist/server/app.js');
+      const { createApp } = appModule;
       const { app } = await createApp();
-
-      // Wrap Express app with serverless-http
-      handler = serverless(app as Express, {
-        request: (request: any) => {
-          // Ensure proper path handling
-          request.url = req.url || '/';
-        }
-      });
-
-      console.log('Serverless handler initialized successfully');
+      
+      // Store the app directly
+      handler = app;
+      
+      console.log('Handler initialized successfully');
     }
 
-    // Call the serverless handler
-    return await handler(req, res);
+    // Handle the request directly with Express
+    handler(req, res);
   } catch (error) {
     console.error('Vercel handler error:', error);
 
@@ -31,7 +26,7 @@ export default async function vercelHandler(req: VercelRequest, res: VercelRespo
       res.status(500).json({
         error: 'Server initialization failed',
         message: error instanceof Error ? error.message : 'Unknown error',
-        details: process.env.NODE_ENV === 'development' ? error : undefined
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
       });
     }
   }

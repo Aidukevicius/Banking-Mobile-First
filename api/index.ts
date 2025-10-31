@@ -3,7 +3,12 @@ import serverless from 'serverless-http';
 import express, { type Request, Response, NextFunction } from "express";
 import path from 'path';
 
-// Validate required environment variables
+declare module 'http' {
+  interface IncomingMessage {
+    rawBody: unknown
+  }
+}
+
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {

@@ -7,7 +7,7 @@
     "api/index.ts": {
       "memory": 1024,
       "maxDuration": 10,
-      "includeFiles": "dist/server/**"
+      "includeFiles": "{dist/server/**,dist/public/**}"
     }
   },
   "installCommand": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps",

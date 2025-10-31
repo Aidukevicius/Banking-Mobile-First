@@ -1,33 +1,38 @@
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import serverless from 'serverless-http';
+import express, { type Request, Response, NextFunction } from "express";
+import path from 'path';
+import { registerRoutes } from "../server/routes";
 
-let handler: any = null;
+const app = express();
 
-export default async function vercelHandler(req: VercelRequest, res: VercelResponse) {
-  try {
-    if (!handler) {
-      // Dynamically import without serverless-http wrapper
-      const appModule = await import('../dist/server/app.js');
-      const { createApp } = appModule;
-      const { app } = await createApp();
-      
-      // Store the app directly
-      handler = app;
-      
-      console.log('Handler initialized successfully');
-    }
-
-    // Handle the request directly with Express
-    handler(req, res);
-  } catch (error) {
-    console.error('Vercel handler error:', error);
-
-    if (!res.headersSent) {
-      res.status(500).json({
-        error: 'Server initialization failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
-      });
-    }
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
   }
-}
+}));
+app.use(express.urlencoded({ extended: false }));
+
+// Register API routes
+registerRoutes(app).catch(err => {
+  console.error('Failed to register routes:', err);
+});
+
+// Serve static files from dist/public
+const staticPath = path.join(process.cwd(), 'dist', 'public');
+app.use(express.static(staticPath));
+
+// Handle SPA routing - serve index.html for non-API routes
+app.get('*', (_req: Request, res: Response) => {
+  res.sendFile(path.join(staticPath, 'index.html'));
+});
+
+// Error handler
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || "Internal server error"
+  });
+});
+
+export default serverless(app);

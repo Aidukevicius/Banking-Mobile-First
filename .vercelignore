@@ -7,12 +7,9 @@ node_modules/esbuild
 .github
 *.md
 !README.md
-client/src
 server/*.ts
 !server/index.ts
 *.test.*
 .env.example
 .replit
 replit.nix
-tsconfig.json
-vite.config.ts

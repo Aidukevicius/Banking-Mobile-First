@@ -135,6 +135,29 @@ npm run db:push
 - Try redeploying from the Deployments tab
 - Verify `package.json` scripts are correct
 
+### "Cannot find module @rollup/rollup-linux-x64-gnu"
+**This has been fixed in the latest version!** The app now uses Rollup's WASM version which works on all serverless platforms.
+
+If you still see this error:
+1. Make sure your `package.json` includes this override:
+   ```json
+   "overrides": {
+     "rollup": "npm:@rollup/wasm-node"
+   }
+   ```
+2. Delete `package-lock.json` and `node_modules`
+3. Run `npm install` locally
+4. Commit the new `package-lock.json`
+5. Push to trigger a fresh Vercel deployment
+
+### "DOMMatrix is not defined" or PDF parsing errors
+**This has been fixed in the latest version!** The app now uses `unpdf` instead of `pdf-parse`, which is fully compatible with serverless environments like Vercel.
+
+If you see PDF-related errors:
+1. Verify you're using the latest code (check `package.json` for `unpdf` dependency)
+2. The old `pdf-parse` package required canvas/DOM APIs not available on Vercel
+3. The new `unpdf` package works perfectly on all serverless platforms
+
 ### "Page not found" or 404 errors
 - Verify the build completed successfully
 - Check that `outputDirectory` is set to `dist/public` in vercel.json

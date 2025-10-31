@@ -101,6 +101,56 @@ npm run db:push
 
 ## Troubleshooting
 
+### "504 Gateway Timeout" errors
+**This is the most common Vercel deployment issue!**
+
+**Root cause:** Vercel has strict serverless function timeout limits:
+- **Free/Hobby tier**: 10 seconds max (cannot be changed)
+- **Pro tier**: 15-60 seconds (configurable, already set to 60s in vercel.json)
+- **Enterprise tier**: Up to 15 minutes
+
+**Solutions:**
+
+1. **Upgrade to Vercel Pro** (Recommended for production)
+   - Go to your Vercel dashboard → Settings → Plans
+   - Upgrade to Pro plan ($20/month)
+   - This gives you 60 second timeout (already configured in vercel.json)
+
+2. **Optimize Database Connections**
+   - Use connection pooling (highly recommended for serverless)
+   - For Neon: Use the "Pooled connection" string instead of direct connection
+   - For Supabase: Enable "Connection pooling" in Settings → Database
+   - Example pooled URL: `postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/dbname`
+
+3. **Match Database Region to Vercel Function Region**
+   - Deploy to same region as your database to reduce latency
+   - In vercel.json, you can add regions:
+   ```json
+   "functions": {
+     "api/index.ts": {
+       "memory": 1024,
+       "maxDuration": 60,
+       "regions": ["iad1"]
+     }
+   }
+   ```
+   - Common regions: `iad1` (US East), `sfo1` (US West), `fra1` (Europe)
+
+4. **Deploy Backend Separately (Free Alternative)**
+   If you want to stay on free tier, deploy your backend to a platform without timeouts:
+   - **Railway.app** - Free tier, deploy the full Express app
+   - **Render.com** - Free tier with 15 minute timeout
+   - **Fly.io** - Free tier available
+   
+   Then update your frontend to call the separate backend URL.
+
+**Debug timeout issues:**
+1. Go to Vercel project → Deployments → Latest deployment
+2. Click "Functions" tab
+3. Look for "FUNCTION_INVOCATION_TIMEOUT" errors
+4. Check which endpoint is timing out
+5. Review that endpoint's database queries and optimize them
+
 ### "500 Internal Server Error" on API calls
 **Common causes:**
 1. **Missing environment variables** - Check that ALL variables from Step 4 are set in Vercel

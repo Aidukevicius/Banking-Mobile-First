@@ -2,7 +2,14 @@
 import serverless from 'serverless-http';
 import express, { type Request, Response, NextFunction } from "express";
 import path from 'path';
-import { registerRoutes } from "../dist/server/routes.js";
+
+// Validate required environment variables
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    throw new Error(`Missing required environment variable: ${envVar}`);
+  }
+}
 
 const app = express();
 
@@ -13,18 +20,42 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
-// Register API routes
-registerRoutes(app).catch(err => {
-  console.error('Failed to register routes:', err);
+// Register API routes with error handling
+let routesRegistered = false;
+(async () => {
+  try {
+    const { registerRoutes } = await import("../dist/server/routes.js");
+    await registerRoutes(app);
+    routesRegistered = true;
+    console.log('Routes registered successfully');
+  } catch (err) {
+    console.error('Failed to register routes:', err);
+    throw err;
+  }
+})();
+
+// Health check to ensure routes are loaded
+app.use((req, res, next) => {
+  if (!routesRegistered && req.path.startsWith('/api')) {
+    return res.status(503).json({ error: 'Service initializing, please retry' });
+  }
+  next();
 });
 
 // Serve static files from dist/public
-const staticPath = path.join(process.cwd(), 'dist', 'public');
+// Use __dirname for Vercel compatibility
+const staticPath = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'dist', 'public');
 app.use(express.static(staticPath));
 
 // Handle SPA routing - serve index.html for non-API routes
 app.get('*', (_req: Request, res: Response) => {
-  res.sendFile(path.join(staticPath, 'index.html'));
+  const indexPath = path.join(staticPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('Error serving index.html:', err);
+      res.status(500).send('Error loading application');
+    }
+  });
 });
 
 // Error handler

@@ -1,7 +1,7 @@
 
 {
   "version": 2,
-  "buildCommand": "vite build",
+  "buildCommand": "npm run build && npm run build:server",
   "outputDirectory": "dist/public",
   "routes": [
     {

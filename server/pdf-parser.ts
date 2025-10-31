@@ -333,26 +333,43 @@ function parseFormatType1(lines: string[]): ParsedTransaction[] {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length < 10) continue;
 
-    const dateMatch = trimmed.match(/(\d{4}-\d{2}-\d{2})/);
-    const amountMatch = trimmed.match(/[-+]?\$?\s*\d+[,.]?\d*\.\d{2}/);
+    // Find all date matches using global regex
+    const datePattern = /(\d{4}-\d{2}-\d{2})/g;
+    const dateMatches = Array.from(trimmed.matchAll(datePattern));
+    
+    if (dateMatches.length === 0) continue;
 
-    if (dateMatch && amountMatch) {
+    // For each date, try to find the corresponding amount and description
+    for (let i = 0; i < dateMatches.length; i++) {
+      const dateMatch = dateMatches[i];
       const date = dateMatch[0];
-      const amountStr = amountMatch[0].replace(/[\$\s,]/g, '');
-      const amount = parseFloat(amountStr);
-
-      const dateIndex = trimmed.indexOf(date);
-      const amountIndex = trimmed.indexOf(amountMatch[0]);
-      let description = trimmed.substring(dateIndex + date.length, amountIndex).trim();
+      const dateStartIndex = dateMatch.index!;
+      const dateEndIndex = dateStartIndex + date.length;
       
-      const provider = extractProvider(description);
+      // Determine the search range for amount (from date end to next date or end of line)
+      const nextDateIndex = i + 1 < dateMatches.length ? dateMatches[i + 1].index! : trimmed.length;
+      const searchRange = trimmed.substring(dateEndIndex, nextDateIndex);
+      
+      // Find amount in this range
+      const amountMatch = searchRange.match(/[-+]?\$?\s*\d+[,.]?\d*\.\d{2}/);
+      
+      if (amountMatch && amountMatch.index !== undefined) {
+        const amountStr = amountMatch[0].replace(/[\$\s,]/g, '');
+        const amount = parseFloat(amountStr);
+        
+        // Extract description (between date and amount)
+        const amountStartInRange = amountMatch.index;
+        const description = searchRange.substring(0, amountStartInRange).trim();
+        
+        const provider = extractProvider(description);
 
-      transactions.push({
-        date,
-        description: description || 'Transaction',
-        provider: provider || 'Unknown',
-        amount,
-      });
+        transactions.push({
+          date,
+          description: description || 'Transaction',
+          provider: provider || 'Unknown',
+          amount,
+        });
+      }
     }
   }
   

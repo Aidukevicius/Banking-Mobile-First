@@ -11,14 +11,7 @@ function getApiInstance() {
     }
     
     apiInstance = new brevo.TransactionalEmailsApi();
-    apiInstance.authentications = {
-      'api-key': {
-        type: 'apiKey',
-        in: 'header',
-        name: 'api-key',
-        apiKey: apiKey
-      }
-    };
+    apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, apiKey);
   }
   return apiInstance;
 }

@@ -29,7 +29,8 @@ app.use(express.urlencoded({ extended: false }));
 let routesRegistered = false;
 (async () => {
   try {
-    const { registerRoutes } = await import("../dist/server/routes.js");
+    const routesPath = path.join(process.cwd(), 'dist', 'server', 'routes.js');
+    const { registerRoutes } = await import(routesPath);
     await registerRoutes(app);
     routesRegistered = true;
     console.log('Routes registered successfully');
@@ -48,8 +49,7 @@ app.use((req, res, next) => {
 });
 
 // Serve static files from dist/public
-// Use __dirname for Vercel compatibility
-const staticPath = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'dist', 'public');
+const staticPath = path.join(process.cwd(), 'dist', 'public');
 app.use(express.static(staticPath));
 
 // Handle SPA routing - serve index.html for non-API routes

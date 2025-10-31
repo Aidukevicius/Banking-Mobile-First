@@ -43,30 +43,42 @@ async function updateMonthlyData(userId: string, monthYear: string) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
+    const startTime = Date.now();
     try {
+      console.log('[REGISTER] Start');
       const { username, email, password } = insertUserSchema.parse(req.body);
+      console.log('[REGISTER] Parsed input:', Date.now() - startTime, 'ms');
       
+      console.log('[REGISTER] Checking username...');
       const existingUsername = await storage.getUserByUsername(username);
+      console.log('[REGISTER] Username check done:', Date.now() - startTime, 'ms');
       if (existingUsername) {
         return res.status(400).json({ error: "Username already exists" });
       }
 
+      console.log('[REGISTER] Checking email...');
       const existingEmail = await storage.getUserByEmail(email);
+      console.log('[REGISTER] Email check done:', Date.now() - startTime, 'ms');
       if (existingEmail) {
         return res.status(400).json({ error: "Email already exists" });
       }
       
+      console.log('[REGISTER] Hashing password...');
       const hashedPassword = hashPassword(password);
+      console.log('[REGISTER] Creating user...');
       const user = await storage.createUser({ username, email, password: hashedPassword });
+      console.log('[REGISTER] User created:', Date.now() - startTime, 'ms');
       
-      // Create default user settings
+      console.log('[REGISTER] Creating settings...');
       await storage.createUserSettings({
         userId: user.id,
         currency: "USD",
         theme: "light",
       });
+      console.log('[REGISTER] Settings created:', Date.now() - startTime, 'ms');
       
       const token = generateToken(user.id);
+      console.log('[REGISTER] Complete:', Date.now() - startTime, 'ms');
       res.json({ user: { id: user.id, username: user.username }, token });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -74,15 +86,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/auth/login", async (req, res) => {
+    const startTime = Date.now();
     try {
+      console.log('[LOGIN] Start');
       const { username, password } = loginSchema.parse(req.body);
       
+      console.log('[LOGIN] Looking up user...');
       const user = await storage.getUserByUsername(username);
+      console.log('[LOGIN] User lookup done:', Date.now() - startTime, 'ms');
       if (!user || !comparePassword(password, user.password)) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
       
       const token = generateToken(user.id);
+      console.log('[LOGIN] Complete:', Date.now() - startTime, 'ms');
       res.json({ user: { id: user.id, username: user.username }, token });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

@@ -64,10 +64,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        let errorMessage = "Invalid credentials";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const error = await response.json();
+            errorMessage = error.error || errorMessage;
+          } else {
+            const text = await response.text();
+            errorMessage = text || `Server error (${response.status})`;
+          }
+        } catch (parseError) {
+          console.error("Error parsing response:", parseError);
+          errorMessage = `Server error (${response.status})`;
+        }
+        
         toast({
           title: "Login failed",
-          description: error.error || "Invalid credentials",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
@@ -89,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Login error:", error);
       toast({
         title: "Login failed",
-        description: "An unexpected error occurred. Please try again.",
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     }
@@ -104,10 +118,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        let errorMessage = "Could not create account";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const error = await response.json();
+            errorMessage = error.error || errorMessage;
+          } else {
+            const text = await response.text();
+            errorMessage = text || `Server error (${response.status})`;
+          }
+        } catch (parseError) {
+          console.error("Error parsing response:", parseError);
+          errorMessage = `Server error (${response.status})`;
+        }
+        
         toast({
           title: "Registration failed",
-          description: error.error || "Could not create account",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
@@ -129,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Registration error:", error);
       toast({
         title: "Registration failed",
-        description: "An unexpected error occurred. Please try again.",
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     }

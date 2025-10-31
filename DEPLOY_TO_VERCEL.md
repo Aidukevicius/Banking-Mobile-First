@@ -2,9 +2,40 @@
 
 This guide will help you deploy the Finance Tracker app to Vercel in under 10 minutes.
 
+## ⚠️ Important: Vercel Free Tier Limitation
+
+**Vercel Free tier has a HARD 10-second timeout limit that cannot be changed.**
+
+For this app:
+- Database operations on first request (cold start) often take 8-12 seconds
+- This frequently exceeds the 10-second free tier limit
+- You'll see **504 Gateway Timeout** errors
+
+### Your Options:
+
+1. **✅ Upgrade to Vercel Pro** ($20/month)
+   - 60-second timeout (already configured in `vercel.json`)
+   - Recommended if you want to use Vercel
+
+2. **✅ Deploy to Railway instead** (Recommended for free tier)
+   - No timeout limits
+   - Includes free PostgreSQL database
+   - $5 free credit per month (usually enough for small apps)
+   - **See `DEPLOY_TO_RAILWAY.md`** for step-by-step guide
+
+3. **Use both** (Advanced)
+   - Frontend on Vercel (free tier is fine for static files)
+   - Backend on Railway (no timeouts)
+   - Requires API URL configuration
+
+**💡 Recommendation**: If you're on Vercel free tier and getting 504 errors, follow `DEPLOY_TO_RAILWAY.md` instead.
+
+---
+
 ## Prerequisites Checklist
 - [ ] GitHub account
 - [ ] Vercel account ([sign up free](https://vercel.com))
+- [ ] **Vercel Pro plan** ($20/month) OR accept 504 timeout risk on free tier
 - [ ] PostgreSQL database (Neon or Supabase recommended)
 - [ ] Brevo account for emails ([sign up free](https://www.brevo.com))
 

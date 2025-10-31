@@ -34,11 +34,23 @@ This is a comprehensive finance tracking application. For full documentation, se
 - Deployment: Optimized for Vercel (works with any Node.js host)
 
 ### Deployment
-This app is fully configured for **one-click deployment to Vercel from GitHub**:
+This app can be deployed to **Vercel or Railway**:
+
+**Railway (Recommended for most users):**
+- ✅ No timeout limits (unlike Vercel free tier's 10-second limit)
+- ✅ Includes PostgreSQL database (no separate setup needed)
+- ✅ Free tier with $5 monthly credit (enough for small apps)
+- See **DEPLOY_TO_RAILWAY.md** for step-by-step guide
+
+**Vercel (For Pro plan users):**
+- ⚠️ Free tier has 10-second timeout (causes 504 errors)
+- ✅ Pro plan ($20/month) has 60-second timeout
+- Requires separate database (Neon/Supabase)
 - See **DEPLOY_TO_VERCEL.md** for step-by-step guide
-- Serverless-ready with proper handler (api/index.ts)
-- Works locally (npm run dev) and on Vercel (serverless functions)
-- All platform configs cleaned up (removed Fly.io, Railway, Render files)
+
+**Which to choose?**
+- See **DEPLOYMENT_GUIDE.md** for detailed comparison
+- **TL;DR**: Use Railway unless you specifically need Vercel
 
 ### Recent Updates (October 30, 2025)
 - **CRITICAL FIX**: PDF parser creating duplicate transactions (9 from 5-transaction PDF)

@@ -116,5 +116,8 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node"
   }
 }

@@ -7,9 +7,8 @@ node_modules/esbuild
 .github
 *.md
 !README.md
-server/*.ts
-!server/index.ts
 *.test.*
 .env.example
 .replit
 replit.nix
+dist

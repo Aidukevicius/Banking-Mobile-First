@@ -91,14 +91,30 @@ import { createApp } from '../server/app.js';
 4. Select your `finance-tracker` repository
 5. Railway will detect it's a Node.js project automatically
 
+⚠️ **Important**: The first deployment will FAIL with "DATABASE_URL must be set" - this is normal! Continue to Step 4 to add the database.
+
 ---
 
-## Step 4: Add PostgreSQL Database
+## Step 4: Add PostgreSQL Database ⚠️ CRITICAL STEP
 
-1. In your Railway project dashboard, click **"+ New"**
-2. Select **"Database"** → **"PostgreSQL"**
-3. Railway will create a database and automatically add `DATABASE_URL` to your environment variables
-4. **Important**: The database URL is automatically available to your app - no need to copy it!
+**This must be done BEFORE your app can start!**
+
+1. In your Railway project dashboard, click **"+ New"** (top right)
+2. Select **"Database"** → **"Add PostgreSQL"**
+3. Railway will create a database in a few seconds
+4. **Verify the link**: 
+   - Click on your **app service** (the one with your code)
+   - Go to **"Variables"** tab
+   - You should see `DATABASE_URL` automatically added
+   - If you don't see it, see troubleshooting below
+
+**If `DATABASE_URL` isn't showing up:**
+1. Click your **PostgreSQL database** in the project
+2. Copy the `DATABASE_URL` from its Variables tab
+3. Go to your **app service** → Variables
+4. Manually add `DATABASE_URL` with the copied value
+
+**Why this is important**: Your app will crash with "DATABASE_URL must be set" error until the database is added and linked.
 
 ---
 
@@ -218,10 +234,17 @@ After the first deployment completes:
 
 **Symptoms**: `DATABASE_URL must be set` error in logs
 
+**This is the error you're seeing!**
+
 **Solution**: 
-1. Make sure you added the PostgreSQL database to your Railway project
-2. Railway automatically injects `DATABASE_URL` - don't manually set it
-3. Restart the deployment: Settings → Redeploy
+1. **Add PostgreSQL database**: Click "+ New" → Database → PostgreSQL
+2. **Verify it's linked**: Go to your app service → Variables tab → Check for `DATABASE_URL`
+3. **If not linked**: 
+   - Copy `DATABASE_URL` from PostgreSQL database Variables tab
+   - Add it manually to your app service Variables
+4. **Redeploy**: Deployments → ... → Redeploy
+
+**Common mistake**: Forgetting to add the database in Step 4. The app CANNOT start without it!
 
 ---
 

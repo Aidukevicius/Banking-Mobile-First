@@ -11,15 +11,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       appInstance = app;
     }
 
-    // Ensure content-type is always JSON for API routes
-    res.setHeader('Content-Type', 'application/json');
-    
-    return appInstance(req, res);
+    // Let Express handle the request
+    return new Promise((resolve, reject) => {
+      appInstance(req, res, (err: any) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(undefined);
+        }
+      });
+    });
   } catch (error) {
     console.error('Vercel handler error:', error);
     
-    // Always return JSON, never HTML
-    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ 
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'

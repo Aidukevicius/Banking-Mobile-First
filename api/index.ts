@@ -2,7 +2,7 @@
 import serverless from 'serverless-http';
 import express, { type Request, Response, NextFunction } from "express";
 import path from 'path';
-import { registerRoutes } from "../server/routes";
+import { registerRoutes } from "../dist/server/routes.js";
 
 const app = express();
 

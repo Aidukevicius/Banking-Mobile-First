@@ -20,6 +20,7 @@ export async function createApp() {
   }));
   app.use(express.urlencoded({ extended: false }));
 
+  // Request logging middleware
   app.use((req, res, next) => {
     const start = Date.now();
     const path = req.path;
@@ -50,20 +51,30 @@ export async function createApp() {
     next();
   });
 
+  // Register API routes
   const server = await registerRoutes(app);
 
   // Global error handler - ensures all errors return JSON
-  app.use((err: any, req: any, res: any, next: any) => {
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Global error handler:', err);
-    res.status(err.status || 500).json({
-      error: err.message || 'Internal server error',
-      message: err.message || 'An unexpected error occurred'
-    });
+    if (!res.headersSent) {
+      res.status(err.status || 500).json({
+        error: err.message || 'Internal server error',
+        message: err.message || 'An unexpected error occurred'
+      });
+    }
   });
 
-  if (app.get("env") === "development") {
+  // Setup static file serving
+  const isProduction = app.get("env") === "production" || process.env.NODE_ENV === "production";
+  
+  if (isProduction) {
+    serveStatic(app);
+  } else if (server) {
+    // Only setup Vite in development when we have a server instance
     await setupVite(app, server);
   } else {
+    // Fallback to static serving if no server
     serveStatic(app);
   }
 

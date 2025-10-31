@@ -3,6 +3,12 @@
   "version": 2,
   "buildCommand": "npm run build && npm run build:server",
   "outputDirectory": "dist/public",
+  "functions": {
+    "api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
   "routes": [
     {
       "src": "/api/(.*)",

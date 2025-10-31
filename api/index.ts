@@ -1,58 +1,37 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createApp } from '../dist/server/app.js';
+import serverless from 'serverless-http';
+import type { Express } from 'express';
 
-let appInstance: any = null;
+let handler: ReturnType<typeof serverless> | null = null;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function vercelHandler(req: VercelRequest, res: VercelResponse) {
   try {
-    if (!appInstance) {
+    if (!handler) {
+      // Dynamically import the app creation function
+      const { createApp } = await import('../dist/server/app.js');
       const { app } = await createApp();
-      appInstance = app;
-    }
 
-    // Handle the request with Express and wait for it to complete
-    await new Promise<void>((resolve, reject) => {
-      // Set a timeout to prevent hanging
-      const timeout = setTimeout(() => {
-        reject(new Error('Request timeout'));
-      }, 29000); // Vercel has 30s limit
-
-      // Handle Express response finishing
-      res.on('finish', () => {
-        clearTimeout(timeout);
-        resolve();
-      });
-
-      res.on('close', () => {
-        clearTimeout(timeout);
-        resolve();
-      });
-
-      // Call Express app
-      appInstance(req, res, (err: any) => {
-        clearTimeout(timeout);
-        if (err) {
-          console.error('Express middleware error:', err);
-          
-          // Only send response if not already sent
-          if (!res.headersSent) {
-            res.status(500).json({
-              error: 'Internal server error',
-              message: err.message || 'An error occurred processing your request'
-            });
-          }
-          resolve();
+      // Wrap Express app with serverless-http
+      handler = serverless(app as Express, {
+        request: (request: any) => {
+          // Ensure proper path handling
+          request.url = req.url || '/';
         }
       });
-    });
+
+      console.log('Serverless handler initialized successfully');
+    }
+
+    // Call the serverless handler
+    return await handler(req, res);
   } catch (error) {
     console.error('Vercel handler error:', error);
-    
-    // Only send response if not already sent
+
     if (!res.headersSent) {
-      res.status(500).json({ 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      res.status(500).json({
+        error: 'Server initialization failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: process.env.NODE_ENV === 'development' ? error : undefined
       });
     }
   }

@@ -7,9 +7,88 @@ export interface ParsedTransaction {
   amount: number;
 }
 
-export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransaction[]> {
+export interface ParserConfig {
+  // Date parsing
+  dateFormats: string[];
+  monthNames: Record<string, string>;
+  
+  // Currency and amounts
+  currencies: string[];
+  decimalSeparator: string;
+  thousandSeparator: string;
+  
+  // Filtering
+  strictFiltering: boolean;
+  minDescriptionLength: number;
+  maxDescriptionLength: number;
+  headerKeywordsToFilter: string[];
+  
+  // Transaction detection
+  negativeIndicators: string[];
+  positiveIndicators: string[];
+  
+  // Confidence thresholds
+  minConfidenceScore: number;
+}
+
+const DEFAULT_PARSER_CONFIG: ParserConfig = {
+  dateFormats: [
+    'YYYY-MM-DD',
+    'MM/DD/YYYY',
+    'DD/MM/YYYY',
+    'DD-MMM-YYYY',
+    'MMM DD, YYYY',
+    'DD MMM YYYY'
+  ],
+  monthNames: {
+    'jan': '01', 'january': '01',
+    'feb': '02', 'february': '02',
+    'mar': '03', 'march': '03',
+    'apr': '04', 'april': '04',
+    'may': '05',
+    'jun': '06', 'june': '06',
+    'jul': '07', 'july': '07',
+    'aug': '08', 'august': '08',
+    'sep': '09', 'september': '09',
+    'oct': '10', 'october': '10',
+    'nov': '11', 'november': '11',
+    'dec': '12', 'december': '12',
+  },
+  currencies: ['RON', 'EUR', 'USD', 'GBP', 'CHF', 'PLN', 'CZK', 'HUF', '$', '€', '£'],
+  decimalSeparator: '.',
+  thousandSeparator: ',',
+  strictFiltering: false,
+  minDescriptionLength: 2,
+  maxDescriptionLength: 200,
+  headerKeywordsToFilter: [
+    'statement period',
+    'account number',
+    'page of',
+    'total credits',
+    'total debits',
+  ],
+  negativeIndicators: [
+    'transfer to', 'payment', 'purchase', 'withdrawal', 'atm', 'fee', 'charge', 'debit', 'sent'
+  ],
+  positiveIndicators: [
+    'top up', 'deposit', 'received', 'transfer from', 'refund', 'cashback', 'income', 'salary', 'credited'
+  ],
+  minConfidenceScore: 0.3,
+};
+
+export async function parsePdfStatement(
+  pdfBuffer: Buffer,
+  config: Partial<ParserConfig> = {}
+): Promise<ParsedTransaction[]> {
+  const parserConfig: ParserConfig = { ...DEFAULT_PARSER_CONFIG, ...config };
+  
   try {
     console.log('Starting PDF parse, buffer size:', pdfBuffer.length);
+    console.log('Parser config:', {
+      strictFiltering: parserConfig.strictFiltering,
+      currencies: parserConfig.currencies,
+      minConfidence: parserConfig.minConfidenceScore
+    });
     
     // Convert buffer to Uint8Array and extract text using unpdf
     const uint8Array = new Uint8Array(pdfBuffer);
@@ -26,6 +105,7 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
     // Try multiple parsing strategies, using each as fallback only if previous ones found nothing
     // This prevents combining duplicate results from multiple parsers
     const parsingStrategies = [
+      { name: 'Universal-Adaptive', fn: () => parseUniversalFormat(lines, text, parserConfig) },
       { name: 'Revolut', fn: () => parseRevolutFormat(lines) },
       { name: 'Format1-YYYY-MM-DD', fn: () => parseFormatType1(lines) },
       { name: 'Format2-MM/DD/YYYY', fn: () => parseFormatType2(lines) },
@@ -50,45 +130,44 @@ export async function parsePdfStatement(pdfBuffer: Buffer): Promise<ParsedTransa
         continue;
       }
       
-      // Filter out page headers and metadata for this parser's results
+      // Filter using adaptive, configurable rules
       const validResults = results.filter(t => {
         // Validate date
         if (!isValidDate(t.date)) {
-          console.log('Skipping invalid date:', t.date, 'for transaction:', t.description);
+          console.log('Skipping invalid date:', t.date, 'for transaction:', t.description.substring(0, 50));
+          return false;
+        }
+        
+        // Check description length
+        if (t.description.length < parserConfig.minDescriptionLength) {
+          console.log('Description too short:', t.description);
+          return false;
+        }
+        
+        if (t.description.length > parserConfig.maxDescriptionLength) {
+          console.log('Description too long:', t.description.substring(0, 50));
           return false;
         }
         
         const lowerDesc = t.description.toLowerCase();
         
-        // Filter out common header/metadata patterns
-        const headerPatterns = [
-          'account transactions from',
-          'date description money',
-          'statement generated',
-          'page of',
-          'balance forward',
-          'beginning balance',
-          'ending balance',
-          'previous balance',
-          'current balance',
-          'total credits',
-          'total debits',
-          'generated on',
-          'revolut bank',
-          'registered address',
-        ];
-        
-        for (const pattern of headerPatterns) {
-          if (lowerDesc.includes(pattern)) {
-            console.log('Filtering out header/metadata:', t.description.substring(0, 50));
-            return false;
+        // Only apply strict filtering if enabled
+        if (parserConfig.strictFiltering) {
+          for (const pattern of parserConfig.headerKeywordsToFilter) {
+            if (lowerDesc.includes(pattern.toLowerCase())) {
+              console.log('Filtering out header/metadata:', t.description.substring(0, 50));
+              return false;
+            }
           }
-        }
-        
-        // Filter out very long descriptions (likely metadata)
-        if (t.description.length > 150) {
-          console.log('Filtering out overly long description:', t.description.substring(0, 50));
-          return false;
+        } else {
+          // Lenient filtering - only filter obvious headers
+          const criticalHeaders = ['date description money', 'page of'];
+          for (const pattern of criticalHeaders) {
+            if (lowerDesc.includes(pattern)) {
+              console.log('Filtering out obvious header:', t.description.substring(0, 50));
+              return false;
+            }
+          }
         }
         
         return true;
@@ -176,6 +255,226 @@ function isValidDate(dateStr: string): boolean {
   return testDate.getFullYear() === year && 
          testDate.getMonth() === month - 1 && 
          testDate.getDate() === day;
+}
+
+// Universal adaptive parser - tries all date/currency formats from config
+function parseUniversalFormat(lines: string[], text: string, config: ParserConfig): ParsedTransaction[] {
+  const transactions: ParsedTransaction[] = [];
+  const currencyPattern = config.currencies.join('|');
+  
+  // Build date patterns from config
+  const datePatterns = [
+    // YYYY-MM-DD
+    /(\d{4})-(\d{1,2})-(\d{1,2})/,
+    // MM/DD/YYYY or DD/MM/YYYY
+    /(\d{1,2})\/(\d{1,2})\/(\d{4})/,
+    // DD-MMM-YYYY or MMM DD, YYYY
+    /(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})/i,
+    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})/i,
+  ];
+  
+  // Amount pattern - supports various currencies and formats
+  // Match amounts with leading or trailing currency symbols, and parentheses for negatives
+  const escapedCurrencies = config.currencies.map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const amountPattern = new RegExp(
+    `(?:${escapedCurrencies})?\\s*[-+]?\\(?\\d{1,3}(?:[,\\.\\s]\\d{3})*[\\.,]\\d{2}\\)?\\s*(?:${escapedCurrencies})?`,
+    'gi'
+  );
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length < 10) continue;
+    
+    // Try to find all dates in this line
+    const foundDates: Array<{match: string, normalized: string, index: number}> = [];
+    
+    for (const pattern of datePatterns) {
+      const matches = Array.from(trimmed.matchAll(new RegExp(pattern, 'g')));
+      for (const match of matches) {
+        const normalized = normalizeDateFromMatch(match, pattern, config.monthNames);
+        if (normalized && isValidDate(normalized)) {
+          foundDates.push({
+            match: match[0],
+            normalized,
+            index: match.index!
+          });
+        }
+      }
+    }
+    
+    // For each date found, try to find corresponding amount
+    for (let i = 0; i < foundDates.length; i++) {
+      const dateInfo = foundDates[i];
+      const nextDateIndex = i + 1 < foundDates.length ? foundDates[i + 1].index : trimmed.length;
+      const searchRange = trimmed.substring(dateInfo.index + dateInfo.match.length, nextDateIndex);
+      
+      // Find amounts in this range
+      const amounts = Array.from(searchRange.matchAll(amountPattern));
+      if (amounts.length > 0) {
+        const amountMatch = amounts[0];
+        const amount = normalizeAmount(amountMatch[0], config, currencyPattern);
+        
+        if (!isNaN(amount) && amount !== 0) {
+          // Extract description (between date and amount)
+          const descStart = dateInfo.match.length;
+          const descEnd = amountMatch.index!;
+          const description = searchRange.substring(0, descEnd).trim();
+          
+          if (description.length >= config.minDescriptionLength) {
+            const provider = extractProvider(description);
+            
+            transactions.push({
+              date: dateInfo.normalized,
+              description: description || 'Transaction',
+              provider: provider || 'Unknown',
+              amount,
+            });
+          }
+        }
+      }
+    }
+  }
+  
+  return transactions;
+}
+
+// Helper to normalize amount string to a number, honoring config separators
+function normalizeAmount(amountStr: string, config: ParserConfig, currencyPattern: string): number {
+  let cleaned = amountStr;
+  
+  // Remove all currency symbols (properly escaped) - both leading and trailing
+  for (const currency of config.currencies) {
+    const escapedCurrency = currency.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cleaned = cleaned.replace(new RegExp(escapedCurrency, 'gi'), '');
+  }
+  cleaned = cleaned.trim();
+  
+  // Check for parentheses (negative indicator)
+  const isNegative = cleaned.includes('(') && cleaned.includes(')');
+  cleaned = cleaned.replace(/[()]/g, '');
+  
+  // Remove leading +/- signs (we'll apply sign at the end)
+  const hasMinusSign = cleaned.startsWith('-');
+  cleaned = cleaned.replace(/^[-+]/, '').trim();
+  
+  let numStr = cleaned;
+  
+  // First try to use config separators if they're not default
+  const configDecimal = config.decimalSeparator;
+  const configThousand = config.thousandSeparator;
+  
+  // If config uses comma as decimal (European), convert to standard format
+  if (configDecimal === ',' && numStr.includes(',')) {
+    // Remove thousand separators first (dot or space)
+    if (configThousand === '.') {
+      numStr = numStr.replace(/\./g, '');
+    } else if (configThousand === ' ') {
+      numStr = numStr.replace(/\s/g, '');
+    }
+    // Convert decimal comma to dot
+    numStr = numStr.replace(',', '.');
+  }
+  // If config uses dot as decimal (US), remove thousand separators (comma or space)
+  else if (configDecimal === '.' && numStr.includes('.')) {
+    if (configThousand === ',') {
+      numStr = numStr.replace(/,/g, '');
+    } else if (configThousand === ' ') {
+      numStr = numStr.replace(/\s/g, '');
+    }
+  }
+  // Fallback: auto-detect format by counting separators
+  else {
+    const dotCount = (numStr.match(/\./g) || []).length;
+    const commaCount = (numStr.match(/,/g) || []).length;
+    const spaceCount = (numStr.match(/\s/g) || []).length;
+    
+    // European format: 1.234,56 or 1 234,56 (comma decimal, dot/space thousands)
+    if (commaCount === 1 && (dotCount > 0 || spaceCount > 0)) {
+      numStr = numStr.replace(/[\s\.]/g, '').replace(',', '.');
+    }
+    // US format: 1,234.56 (dot decimal, comma thousands)
+    else if (dotCount === 1 && commaCount > 0) {
+      numStr = numStr.replace(/,/g, '');
+    }
+    // Only comma (could be decimal): 123,45
+    else if (commaCount === 1 && dotCount === 0 && spaceCount === 0) {
+      numStr = numStr.replace(',', '.');
+    }
+    // Only dot (decimal): 123.45
+    else if (dotCount === 1 && commaCount === 0) {
+      numStr = numStr; // already correct
+    }
+    // Multiple separators of same type (thousands): remove them
+    else if (commaCount > 1) {
+      numStr = numStr.replace(/,/g, '');
+    } else if (dotCount > 1) {
+      numStr = numStr.replace(/\./g, '').slice(0, -2) + '.' + numStr.slice(-2);
+    }
+    // Space as thousands separator: remove spaces
+    else if (spaceCount > 0) {
+      numStr = numStr.replace(/\s/g, '');
+    }
+  }
+  
+  const amount = parseFloat(numStr);
+  
+  // Apply negative sign if needed
+  if (isNegative || hasMinusSign) {
+    return -Math.abs(amount);
+  }
+  
+  return amount;
+}
+
+// Helper to normalize date from regex match
+function normalizeDateFromMatch(match: RegExpMatchArray, pattern: RegExp, monthMap: Record<string, string>): string | null {
+  try {
+    const patternStr = pattern.toString();
+    
+    // YYYY-MM-DD format
+    if (patternStr.includes('(\\d{4})-(\\d{1,2})-(\\d{1,2})')) {
+      const year = match[1];
+      const month = match[2].padStart(2, '0');
+      const day = match[3].padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    // MM/DD/YYYY or DD/MM/YYYY format
+    if (patternStr.includes('(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})')) {
+      const part1 = match[1].padStart(2, '0');
+      const part2 = match[2].padStart(2, '0');
+      const year = match[3];
+      // Try MM/DD/YYYY first
+      let date = `${year}-${part1}-${part2}`;
+      if (isValidDate(date)) return date;
+      // Try DD/MM/YYYY
+      date = `${year}-${part2}-${part1}`;
+      if (isValidDate(date)) return date;
+      return null;
+    }
+    
+    // DD MMM YYYY format
+    if (patternStr.includes('(\\d{1,2})\\s+(Jan|Feb') || patternStr.includes('(\\d{1,2})\\\\s+')) {
+      const day = match[1].padStart(2, '0');
+      const monthStr = match[2].toLowerCase().substring(0, 3);
+      const month = monthMap[monthStr] || '01';
+      const year = match[3];
+      return `${year}-${month}-${day}`;
+    }
+    
+    // MMM DD, YYYY format
+    if (patternStr.includes('(Jan|Feb') && match[2]) {
+      const monthStr = match[1].toLowerCase().substring(0, 3);
+      const month = monthMap[monthStr] || '01';
+      const day = match[2].padStart(2, '0');
+      const year = match[3];
+      return `${year}-${month}-${day}`;
+    }
+    
+    return null;
+  } catch (e) {
+    return null;
+  }
 }
 
 // Revolut-specific format parser
